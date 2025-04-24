@@ -1,5 +1,4 @@
 from camvidlog2.cli import app
 
-
-def main() -> None:
+if __name__ == "__main__":
     app()
