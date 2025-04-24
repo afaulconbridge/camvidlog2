@@ -7,3 +7,9 @@
 
 # secrets
 *.env
+
+# caches
+.mypy_cahe
+.pytest_cache
+
+.github
