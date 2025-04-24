@@ -1,0 +1,30 @@
+[project]
+name = "camvidlog2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.15.2",
+    "ipykernel>=6.29.5",
+    "seaborn>=0.13.2",
+    "open-clip-torch>=2.31.0",
+    "opencv-python-headless>=4.11.0.86",
+    "pandas[performance]>=2.2.3",
+    "pandas-stubs>=2.2.3.250308",
+    "scalene>=1.5.51",
+]
+
+[project.scripts]
+camvidlog2 = "camvidlog2:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["camvidlog2"]
+
+[[tool.mypy.overrides]]
+module = ["open_clip.*"]
+ignore_missing_imports = true
