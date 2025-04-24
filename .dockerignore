@@ -1,0 +1,9 @@
+# Virtual environments
+.venv
+ 
+# data files
+*.feather
+*.feather.gz
+
+# secrets
+*.env
