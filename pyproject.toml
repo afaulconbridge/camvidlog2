@@ -8,7 +8,7 @@ dependencies = [
     "typer>=0.15.2",
     "open-clip-torch>=2.31.0",
     "opencv-python-headless>=4.11.0.86",
-    "pandas[performance]>=2.2.3",
+    "pandas[feather,performance]>=2.2.3",
     "pandas-stubs>=2.2.3.250308",
 ]
 
