@@ -1,0 +1,33 @@
+name: pre-commit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup UV including caching
+        id: setup-uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.6.16"
+          enable-cache: true
+
+      - name: Setup Python
+        id: setup-python
+        run: uv python install
+
+      - name: Setup dependencies
+        id: setup-deps
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run pre-commit
+        id: pre-commit
+        uses: pre-commit/action@v3.0.1

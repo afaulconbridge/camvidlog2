@@ -12,6 +12,18 @@ dependencies = [
     "pandas-stubs>=2.2.3.250308",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "ipykernel>=6.29.5",
+    "seaborn>=0.13.2",
+    "scalene>=1.5.51",
+    "pre-commit>=4.2.0",
+    "mypy>=1.15.0",
+    "ruff>=0.11.7",
+]
+
+
 [project.scripts]
 camvidlog2 = "camvidlog2:main"
 
@@ -25,11 +37,3 @@ members = ["camvidlog2"]
 [[tool.mypy.overrides]]
 module = ["open_clip.*"]
 ignore_missing_imports = true
-
-[dependency-groups]
-dev = [
-    "pytest>=8.3.5",
-    "ipykernel>=6.29.5",
-    "seaborn>=0.13.2",
-    "scalene>=1.5.51",
-]
