@@ -11,4 +11,6 @@ def test_get_test_embeddings():
     assert isinstance(embedding, np.ndarray)
     assert len(embedding) == 512
     assert embedding.dtype == np.float32
-    assert math.isclose(embedding.sum(), 1.0)
+
+    # magnitude of the embedding should be close to one
+    assert math.isclose(np.linalg.norm(embedding), 1.0, rel_tol=0.0001, abs_tol=0.0001)
