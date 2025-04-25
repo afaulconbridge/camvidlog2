@@ -1,8 +1,9 @@
 from typing import Generator, Iterable
-from PIL import Image
-import torch.nn.functional
+
 import numpy as np
 import open_clip
+import torch.nn.functional
+from PIL import Image
 
 
 def get_video_embeddings(

@@ -1,10 +1,12 @@
-import typer
-from camvidlog2.data import load as data_load
-from camvidlog2.data import create
-from camvidlog2.ai import get_video_embeddings, get_string_embedding
-from camvidlog2.vid import generate_frames_cv2
 from pathlib import Path
+
 import pandas as pd
+import typer
+
+from camvidlog2.ai import get_string_embedding, get_video_embeddings
+from camvidlog2.data import create
+from camvidlog2.data import load as data_load
+from camvidlog2.vid import generate_frames_cv2
 
 app = typer.Typer()
 
@@ -46,7 +48,7 @@ def load(videos: list[str]):
 @app.command()
 def query(query: str):
     df = data_load(Path("tmp.feather"))
-    if not df:
+    if df is None:
         raise ValueError("Unable to load database")
     embedding = get_string_embedding(query)
     df_embeddings = df.drop(columns=["filename", "frame_no"])

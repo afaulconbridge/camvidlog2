@@ -1,6 +1,7 @@
-from typing import Generator
-import cv2
 from pathlib import Path
+from typing import Generator
+
+import cv2
 import numpy as np
 
 
