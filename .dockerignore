@@ -1,6 +1,9 @@
 # Virtual environments
 .venv
 
+# Test-generated files
+.coverage
+
 # data files
 *.feather
 *.feather.gz
@@ -12,4 +15,5 @@
 .mypy_cahe
 .pytest_cache
 
+# CICD
 .github

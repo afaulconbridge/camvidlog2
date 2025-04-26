@@ -15,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
     "ipykernel>=6.29.5",
     "seaborn>=0.13.2",
     "scalene>=1.5.51",
@@ -37,3 +38,6 @@ members = ["camvidlog2"]
 [[tool.mypy.overrides]]
 module = ["open_clip.*"]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=camvidlog2 --no-cov-on-fail"
