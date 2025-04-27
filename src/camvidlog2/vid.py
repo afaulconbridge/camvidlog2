@@ -55,7 +55,7 @@ def get_video_stats(filename: str | Path) -> VideoFileStats:
     try:
         video_capture = cv2.VideoCapture(str(filename), cv2.CAP_ANY)
         fps = float(video_capture.get(cv2.CAP_PROP_FPS))
-        frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_count = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT)) - 1
         # frame details are more reliable than capture properties
         # x = cv2.CAP_PROP_FRAME_WIDTH
         # y = cv2.CAP_PROP_FRAME_HEIGHT
@@ -107,15 +107,20 @@ def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
 
     vid_stats = get_video_stats(filename)
 
-    if frame_no >= vid_stats.frame_count:
+    if frame_no > vid_stats.frame_count:
         raise ValueError("Frame number must be in video")
 
     start_ms = (frame_no - 1) * vid_stats.frame_duration
 
-    res = next(generate_frames_cv2(filename, start_ms=start_ms), None)
+    frame_generator = generate_frames_cv2(filename, start_ms=start_ms)
+    res = next(frame_generator, None)
     if res is None:
         raise RuntimeError("Unable to read from file")
     frame_no_hit, array = res
+
+    # might need to slip forward a few frames
+    while frame_no_hit < frame_no:
+        frame_no_hit, array = next(frame_generator)
     if frame_no_hit != frame_no:
         raise RuntimeError("Hit the wrong frame")
     return array
