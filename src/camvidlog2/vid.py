@@ -124,3 +124,9 @@ def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
     if frame_no_hit != frame_no:
         raise RuntimeError("Hit the wrong frame")
     return array
+
+
+def save(filename: str | Path, array: np.ndarray) -> None:
+    result = cv2.imwrite(str(filename), array)
+    if not result:
+        raise RuntimeError("Failed to write file")

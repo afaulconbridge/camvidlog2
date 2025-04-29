@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+from typing import Annotated
 
 import pandas as pd
 import typer
@@ -6,7 +8,7 @@ import typer
 from camvidlog2.ai import get_string_embedding, get_video_embeddings
 from camvidlog2.data import create
 from camvidlog2.data import load as data_load
-from camvidlog2.vid import generate_frames_cv2
+from camvidlog2.vid import generate_frames_cv2, get_frame_by_no, save
 
 app = typer.Typer()
 
@@ -46,10 +48,19 @@ def load(videos: list[str]):
 
 
 @app.command()
-def query(query: str):
+def query(
+    query: Annotated[str, typer.Argument()],
+    outdir: Annotated[Path | None, typer.Option()] = None,
+):
     df = data_load(Path("tmp.feather"))
     if df is None:
         raise ValueError("Unable to load database")
+
+    if outdir:
+        # ensure the target location exists
+        outdir = outdir.absolute().resolve()
+        os.makedirs(outdir, exist_ok=True)
+
     embedding = get_string_embedding(query)
     df_embeddings = df.drop(columns=["filename", "frame_no"])
 
@@ -66,8 +77,12 @@ def query(query: str):
     grouped.sort_values(by="distances", ascending=False, inplace=True)
 
     for i, row in enumerate(grouped.itertuples()):
-        print(row)
-        if i >= 10:
+        _, filename, frame_no, distance = row
+        print(f"{i:3d} {frame_no:4d} {distance:.3f} {filename}")
+        if outdir:
+            img_array = get_frame_by_no(filename, frame_no)
+            save(outdir / f"{i:03d}.jpg", img_array)
+        if i >= 10:  # TODO make this a command line option
             break
 
 
