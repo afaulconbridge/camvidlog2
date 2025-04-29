@@ -14,9 +14,12 @@ app = typer.Typer()
 
 
 @app.command()
-def load(videos: list[str]):
+def load(
+    videos: list[str],
+    db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
+):
     # load existing array, if any
-    existing_array = data_load(Path("tmp.feather"))
+    existing_array = data_load(db)
     for video in videos:
         if (
             existing_array is not None
@@ -43,7 +46,7 @@ def load(videos: list[str]):
             existing_array = pd.concat([existing_array, array])
 
         # save array (new or existing) to disk
-        existing_array.to_feather("tmp.feather")
+        existing_array.to_feather(db)
         print("saved file")
 
 
@@ -51,8 +54,10 @@ def load(videos: list[str]):
 def query(
     query: Annotated[str, typer.Argument()],
     outdir: Annotated[Path | None, typer.Option()] = None,
+    db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
+    num: Annotated[int, typer.Option("--num", "-n")] = 10,
 ):
-    df = data_load(Path("tmp.feather"))
+    df = data_load(db)
     if df is None:
         raise ValueError("Unable to load database")
 
@@ -82,7 +87,7 @@ def query(
         if outdir:
             img_array = get_frame_by_no(filename, frame_no)
             save(outdir / f"{i:03d}.jpg", img_array)
-        if i >= 10:  # TODO make this a command line option
+        if i >= num:
             break
 
 
