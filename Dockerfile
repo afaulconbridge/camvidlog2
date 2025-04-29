@@ -19,6 +19,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Preload models etc
 RUN --mount=type=bind,source=bin/preload.sh,target=bin/preload.sh \
+    --mount=type=cache,target=/root/.cache/huggingface \
     uv run bin/preload.sh
 
 # Add the rest of the project source code and install it
