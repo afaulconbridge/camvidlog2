@@ -76,7 +76,7 @@ def query(
     df = df[["filename", "frame_no", "distances"]]
     df.reset_index(drop=True, inplace=True)
 
-    # get the rows that are the closest match
+    # get the frame in each file that is the closest match
     grouped = df.loc[df.groupby("filename")["distances"].idxmax()]
 
     grouped.sort_values(by="distances", ascending=False, inplace=True)
@@ -85,8 +85,12 @@ def query(
         _, filename, frame_no, distance = row
         print(f"{i:3d} {frame_no:4d} {distance:.3f} {filename}")
         if outdir:
-            img_array = get_frame_by_no(filename, frame_no)
+            try:
+                img_array = get_frame_by_no(filename, frame_no)
+            except RuntimeError:
+                continue
             save(outdir / f"{i:03d}.jpg", img_array)
+            del img_array
         if i >= num:
             break
 
