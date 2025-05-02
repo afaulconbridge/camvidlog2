@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -130,3 +131,41 @@ def save(filename: str | Path, array: np.ndarray) -> None:
     result = cv2.imwrite(str(filename), array)
     if not result:
         raise RuntimeError("Failed to write file")
+
+
+def slice_frame(
+    frame: np.ndarray,
+    slice_width: int = 224,
+    slice_height: int = 224,
+    slice_overlap: float = 0.25,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Slice a frame into smaller frames
+    """
+    if slice_width < 1:
+        raise ValueError("slcie width must be at least 1")
+    if slice_height < 1:
+        raise ValueError("slcie height must be at least 1")
+    if slice_overlap < 0.0:
+        raise ValueError("slice overlap must not be negative")
+    if slice_overlap >= 1.0:
+        raise ValueError("slice overlap must not be greater or equal to 1.0")
+
+    # get the dimensions of the input image
+    frame_height, frame_width = frame.shape[:2]
+    # calculate how many slices we need to make based on the desired output size and overlap ratio
+    slice_height_non_overlap = int(slice_height * (1.0 - slice_overlap))
+    slice_width_non_overlap = int(slice_width * (1.0 - slice_overlap))
+    num_slices_height = math.ceil(frame_height / slice_height_non_overlap)
+    num_slices_width = math.ceil(frame_width / slice_width_non_overlap)
+    slice_offset_height = frame_height / num_slices_height
+    slice_offset_width = frame_width / num_slices_width
+
+    for i in range(num_slices_height):
+        for j in range(num_slices_width):
+            # calculate the coordinates of the current slice
+            x1 = int(i * slice_offset_width)
+            y1 = int(j * slice_offset_height)
+            # calculate the current slice
+            frame_slice = frame[y1 : y1 + slice_height, x1 : x1 + slice_width]
+            yield frame_slice
