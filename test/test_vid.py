@@ -5,6 +5,7 @@ import pytest
 
 from camvidlog2.vid import (
     Colourspace,
+    Region,
     generate_frames_cv2,
     get_frame_by_no,
     get_video_stats,
@@ -42,15 +43,32 @@ def test_get_video_stats(video_path: Path):
     assert stats.frame_duration == int(1000 / 30)
 
 
-def test_slice_frame(video_path: Path):
-    frame = get_frame_by_no(video_path, 1)
-    # image is 2160 * 3840
-    # slice size is 224 * 224
-    # overlap is 112 * 112
+def test_slice_frame():
+    frame = np.zeros((800, 1000, 3), dtype=np.uint8)
+    # image is 800 * 1000
+    # slice size is 400*400
+    # overlap is 0.25
     # so we should get:
-    # (3840-(224*(1-0.25)))/(224*(1-0.25)) = 23 across
-    # (2160-(224*(1-0.25)))/(224*(1-0.25)) = 13 down
-    # 23*13=299
-    slices = list(slice_frame(frame, 224, 224, 0.25))
+    # if its 1000 wide and slices are 400 with .25 overlap
+    #  - first is 0 to 400
+    #  - second is 300 to 700
+    #  - third is 600 to 1000
 
-    assert len(slices) == 299
+    # if its 800 high and the slices are 400 with .25 overlap
+    #  - first is 0 to 400
+    #  - second is 200 to 600
+    #  - third is 400 to 800
+    # 3*3 = 9
+
+    slice_size = 400
+    slices = slice_frame(frame, slice_size, slice_size, 0.25)
+
+    for i, (region, subframe) in enumerate(slices, 1):
+        assert isinstance(region, Region)
+        assert isinstance(subframe, np.ndarray)
+        assert subframe.shape == (slice_size, slice_size, 3)
+        assert region.x1 >= 0 and region.y1 >= 0
+        assert region.x2 - region.x1 == slice_size
+        assert region.y2 - region.y1 == slice_size
+
+    assert i + 1 == 9

@@ -22,7 +22,32 @@ class Resolution(Enum):
     UHD = (2160, 3840)  # 4K, UHD
 
 
-@dataclass
+@dataclass(frozen=True)
+class Region:
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+    """Represents a rectangular region in a 2D space.
+
+    The region is defined by its top-left (x1, y1) and bottom-right (x2, y2)
+    coordinates. It ensures that the region's boundaries are valid, meaning x2
+    is greater than x1 and y2 is greater than y1.
+
+    Attributes:
+        x1 (int): The x-coordinate of the top-left corner.
+        y1 (int): The y-coordinate of the top-left corner.
+        x2 (int): The x-coordinate of the bottom-right corner.
+        y2 (int): The y-coordinate of the bottom-right corner.
+    """
+
+    def __post_init__(self):
+        if not (self.x2 > self.x1 and self.y2 > self.y1):
+            raise ValueError("Invalid region dimensions. Ensure x2 > x1 and y2 > y1.")
+
+
+@dataclass(frozen=True)
 class VideoFileStats:
     fps: float
     frame_count: int
@@ -138,7 +163,7 @@ def slice_frame(
     slice_width: int = 224,
     slice_height: int = 224,
     slice_overlap: float = 0.25,
-) -> Generator[np.ndarray, None, None]:
+) -> Generator[tuple[Region, np.ndarray], None, None]:
     """
     Slice a frame into smaller frames
     """
@@ -154,18 +179,36 @@ def slice_frame(
     # get the dimensions of the input image
     frame_height, frame_width = frame.shape[:2]
     # calculate how many slices we need to make based on the desired output size and overlap ratio
-    slice_height_non_overlap = int(slice_height * (1.0 - slice_overlap))
-    slice_width_non_overlap = int(slice_width * (1.0 - slice_overlap))
-    num_slices_height = math.ceil(frame_height / slice_height_non_overlap)
-    num_slices_width = math.ceil(frame_width / slice_width_non_overlap)
-    slice_offset_height = frame_height / num_slices_height
-    slice_offset_width = frame_width / num_slices_width
+    slice_height_overlap = int(slice_height * slice_overlap)
+    slice_width_overlap = int(slice_width * slice_overlap)
+    slice_height_non_overlap = slice_height - slice_height_overlap
+    slice_width_non_overlap = slice_width - slice_width_overlap
+    num_slices_height = math.ceil(
+        (frame_height - slice_height_overlap) / slice_height_non_overlap
+    )
+    num_slices_width = math.ceil(
+        (frame_width - slice_width_overlap) / slice_width_non_overlap
+    )
 
-    for i in range(num_slices_height):
-        for j in range(num_slices_width):
+    # recalculate the overlaps to use based on the number of slices
+    extra_width = (num_slices_width * slice_width) - frame_width
+    extra_height = (num_slices_height * slice_height) - frame_height
+    slice_width_overlap_updated = extra_width / (num_slices_width - 1)
+    slice_height_overlap_updated = extra_height / (num_slices_height - 1)
+    assert slice_height_overlap_updated >= slice_height_overlap
+    assert slice_width_overlap_updated >= slice_width_overlap
+
+    slice_offset_height = slice_height - slice_height_overlap_updated
+    slice_offset_width = slice_width - slice_width_overlap_updated
+
+    for yi in range(num_slices_height):
+        for xj in range(num_slices_width):
             # calculate the coordinates of the current slice
-            x1 = int(i * slice_offset_width)
-            y1 = int(j * slice_offset_height)
+            y1 = int(yi * slice_offset_height)
+            x1 = int(xj * slice_offset_width)
             # calculate the current slice
-            frame_slice = frame[y1 : y1 + slice_height, x1 : x1 + slice_width]
-            yield frame_slice
+            x2 = x1 + slice_width
+            y2 = y1 + slice_height
+            frame_slice = frame[y1:y2, x1:x2]
+            region = Region(x1, y1, x2, y2)
+            yield region, frame_slice
