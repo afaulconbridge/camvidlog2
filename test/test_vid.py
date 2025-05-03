@@ -71,4 +71,4 @@ def test_slice_frame():
         assert region.x2 - region.x1 == slice_size
         assert region.y2 - region.y1 == slice_size
 
-    assert i + 1 == 9
+    assert i == 9
