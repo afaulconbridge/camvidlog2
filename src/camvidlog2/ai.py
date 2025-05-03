@@ -27,12 +27,14 @@ def get_video_embeddings(
 
 
 def get_string_embedding(query: str) -> np.ndarray:
+    return get_string_embeddings([query])[0]
+
+
+def get_string_embeddings(queries: list[str]) -> np.ndarray:
     model, _, processor = open_clip.create_model_and_transforms(
         "hf-hub:imageomics/bioclip"
     )
     model.eval()
     tokenizer = open_clip.get_tokenizer("hf-hub:imageomics/bioclip")
-    features = torch.nn.functional.normalize(
-        model.encode_text(tokenizer(query)), dim=-1
-    )
-    return features[0].detach().numpy().astype(np.float32)
+    features = model.encode_text(tokenizer(queries), normalize=True)
+    return features.detach().numpy().astype(np.float32)
