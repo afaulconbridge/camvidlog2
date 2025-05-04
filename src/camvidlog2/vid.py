@@ -8,6 +8,10 @@ import cv2
 import numpy as np
 
 
+class FrameError(Exception):
+    pass
+
+
 class Colourspace(Enum):
     RGB = "rgb"
     greyscale = "greyscale"
@@ -129,26 +133,26 @@ def generate_frames_cv2(
 
 def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
     if frame_no <= 0:
-        raise ValueError("Frame number must be positive")
+        raise FrameError("Frame number must be positive")
 
     vid_stats = get_video_stats(filename)
 
     if frame_no > vid_stats.frame_count:
-        raise ValueError("Frame number must be in video")
+        raise FrameError("Frame number must be in video")
 
     start_ms = (frame_no - 1) * vid_stats.frame_duration
 
     frame_generator = generate_frames_cv2(filename, start_ms=start_ms)
     res = next(frame_generator, None)
     if res is None:
-        raise RuntimeError("Unable to read from file")
+        raise FrameError("Unable to read from file")
     frame_no_hit, array = res
 
     # might need to slip forward a few frames
     while frame_no_hit < frame_no:
         frame_no_hit, array = next(frame_generator)
     if frame_no_hit != frame_no:
-        raise RuntimeError("Hit the wrong frame")
+        raise FrameError("Hit the wrong frame")
     return array
 
 

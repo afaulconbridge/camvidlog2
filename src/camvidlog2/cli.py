@@ -8,7 +8,7 @@ import typer
 from camvidlog2.ai import get_string_embeddings, get_video_embeddings
 from camvidlog2.data import create
 from camvidlog2.data import load as data_load
-from camvidlog2.vid import generate_frames_cv2, get_frame_by_no, save
+from camvidlog2.vid import FrameError, generate_frames_cv2, get_frame_by_no, save
 
 app = typer.Typer()
 
@@ -66,16 +66,16 @@ def query(
         outdir = outdir.absolute().resolve()
         os.makedirs(outdir, exist_ok=True)
 
-    embeddings = get_string_embeddings(queries)
-    df_embeddings = df.drop(columns=["filename", "frame_no"])
+    string_embeddings = get_string_embeddings(queries)
+    frame_embeddings = df.drop(columns=["filename", "frame_no"])
 
     # dot product of unit vectors is the alignment between them (1 = equal, 0 = perpendicular)
-    df_distances = df_embeddings.dot(embeddings.transpose())
+    distances = frame_embeddings.dot(string_embeddings.transpose())
     # drop frame embedding columns and cleanup
     df = df[["filename", "frame_no"]]
 
     # bolt distances onto existing dataframe
-    df = pd.concat([df, df_distances], axis=1)
+    df = pd.concat([df, distances], axis=1)
 
     # reindex the combination
     df.reset_index(drop=True, inplace=True)
@@ -99,7 +99,7 @@ def query(
             if outdir:
                 try:
                     img_array = get_frame_by_no(filename, frame_no)
-                except RuntimeError:
+                except FrameError:
                     continue
                 outpath = outdir / f"{j:03d}" / f"{i:03d}.jpg"
                 os.makedirs(outpath.parent, exist_ok=True)
