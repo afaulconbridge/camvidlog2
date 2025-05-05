@@ -55,8 +55,8 @@ def query(
     queries: Annotated[list[str], typer.Argument()],
     outdir: Annotated[Path | None, typer.Option()] = None,
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
-    num: Annotated[int, typer.Option("--num", "-n")] = 10,
-    roll: Annotated[int, typer.Option("--rolling", "-r")] = 0,
+    num: Annotated[int, typer.Option("--num", "-n", min=0)] = 10,
+    roll: Annotated[int, typer.Option("--rolling", "-r", min=0)] = 0,
 ):
     df = data_load(db)
     if df is None:
