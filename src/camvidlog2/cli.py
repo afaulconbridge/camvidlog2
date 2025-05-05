@@ -56,6 +56,7 @@ def query(
     outdir: Annotated[Path | None, typer.Option()] = None,
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
     num: Annotated[int, typer.Option("--num", "-n")] = 10,
+    roll: Annotated[int, typer.Option("--rolling", "-r")] = 0,
 ):
     df = data_load(db)
     if df is None:
@@ -77,10 +78,16 @@ def query(
     # bolt distances onto existing dataframe
     df = pd.concat([df, distances], axis=1)
 
-    # reindex the combination
-    df.reset_index(drop=True, inplace=True)
+    # apply a rolling mean calculation if appropriate
+    if roll > 0:
+        # reindex on the combination we need
+        df.set_index(["filename", "frame_no"], inplace=True)
+        df = df.groupby(level="filename").rolling(window=roll, center=True).mean()
+        # avoid index duplication bug: https://stackoverflow.com/questions/42119793/doing-a-groupby-and-rolling-window-on-a-pandas-dataframe-with-a-multilevel-index
+        df = df.droplevel(0)
 
     # handle each query separately from this point onward
+    df.reset_index(inplace=True)
     for j, _ in enumerate(queries, 1):
         # get the frame in each file that is the closest match
         grouped = df.loc[df.groupby("filename")[j - 1].idxmax()]
