@@ -9,7 +9,7 @@ def load(path: Path) -> pd.DataFrame | None:
     # load existing array, if any
     existing_array = None
     if path.exists():
-        existing_array = pd.read_feather("tmp.feather")
+        existing_array = pd.read_feather(path)
 
     return existing_array
 
