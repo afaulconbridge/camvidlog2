@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import Iterable, Literal, Union
+from collections.abc import Iterable
+from typing import Annotated, Literal, Union
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field
-from typing_extensions import Annotated
 
 
 class StringEmbedding(BaseModel):
