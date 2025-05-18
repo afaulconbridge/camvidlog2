@@ -26,3 +26,10 @@ def test_load_embedding_group_json(tmp_path: Path) -> None:
 
     assert isinstance(loaded_group, EmbeddingGroup)
     assert len(loaded_group.items) == 2
+    # Verify the string embedding contents
+    assert loaded_group.items[0].source == "string"
+    assert loaded_group.items[0].query == "hello world"
+    # Verify the frame embedding contents
+    assert loaded_group.items[1].source == "frame"
+    assert loaded_group.items[1].filepath == "example.mp4"
+    assert loaded_group.items[1].frame_no == 1
