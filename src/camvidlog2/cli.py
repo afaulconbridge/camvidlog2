@@ -5,9 +5,15 @@ from typing import Annotated
 import pandas as pd
 import typer
 
-from camvidlog2.ai import get_string_embeddings, get_video_embeddings
-from camvidlog2.data import create
+from camvidlog2.ai import get_video_embeddings
+from camvidlog2.data import (
+    EmbeddingGroup,
+    StringEmbedding,
+    create,
+    load_embedding_group_json,
+)
 from camvidlog2.data import load as data_load
+from camvidlog2.queries import calculate_distances, load_embedding_group_dataframe
 from camvidlog2.vid import FrameError, generate_frames_cv2, get_frame_by_no, save
 
 app = typer.Typer()
@@ -52,63 +58,67 @@ def load(
 
 @app.command()
 def query(
-    queries: Annotated[list[str], typer.Argument()],
+    queries: Annotated[list[str] | None, typer.Argument()] = None,
     outdir: Annotated[Path | None, typer.Option()] = None,
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
     num: Annotated[int, typer.Option("--num", "-n", min=0)] = 10,
     roll: Annotated[int, typer.Option("--rolling", "-r", min=0)] = 0,
+    json: Annotated[Path | None, typer.Option()] = None,
 ):
-    df = data_load(db)
-    if df is None:
+    video_embeddings = data_load(db)
+    if video_embeddings is None:
         raise ValueError("Unable to load database")
+
+    if json:
+        if queries:
+            raise ValueError("Cannot use --json and [QUERIES]")
+        embedding_group = load_embedding_group_json(json)
+    else:
+        if not queries:
+            raise ValueError("Must provide either --json or [QUERIES]")
+        embedding_group = EmbeddingGroup(
+            items=[StringEmbedding(query=q) for q in queries]
+        )
 
     if outdir:
         # ensure the target location exists
         outdir = outdir.absolute().resolve()
         os.makedirs(outdir, exist_ok=True)
+        # record what search was run
+        with open(outdir / "query.json", "w") as json_out:
+            json_out.write(embedding_group.model_dump_json(indent=2))
 
-    string_embeddings = get_string_embeddings(queries)
-    frame_embeddings = df.drop(columns=["filename", "frame_no"])
+    search_embeddings = load_embedding_group_dataframe(
+        embedding_group, video_embeddings
+    )
 
-    # dot product of unit vectors is the alignment between them (1 = equal, 0 = perpendicular)
-    distances = frame_embeddings.dot(string_embeddings.transpose())
-    # drop frame embedding columns and cleanup
-    df = df[["filename", "frame_no"]]
-
-    # bolt distances onto existing dataframe
-    df = pd.concat([df, distances], axis=1)
-
-    # apply a rolling mean calculation if appropriate
-    if roll > 0:
-        # reindex on the combination we need
-        df.set_index(["filename", "frame_no"], inplace=True)
-        df = df.groupby(level="filename").rolling(window=roll, center=True).mean()
-        # avoid index duplication bug: https://stackoverflow.com/questions/42119793/doing-a-groupby-and-rolling-window-on-a-pandas-dataframe-with-a-multilevel-index
-        df = df.droplevel(0)
+    distances = calculate_distances(video_embeddings, search_embeddings, roll=roll)
 
     # handle each query separately from this point onward
-    df.reset_index(inplace=True)
-    for j, _ in enumerate(queries, 1):
-        # get the frame in each file that is the closest match
-        grouped = df.loc[df.groupby("filename")[j - 1].idxmax()]
-
-        grouped.sort_values(
-            by=(j - 1),
+    # get the frame in each file that is the closest match
+    index_loc_max = distances.groupby("filename").idxmax()
+    for j, _ in enumerate(embedding_group.items, 0):
+        query_max = pd.DataFrame(distances.loc[index_loc_max[j].tolist()][j])
+        query_max.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
+        query_max.sort_values(
+            by=j,
             ascending=False,
             inplace=True,
         )  # type: ignore
         # this is a typing bug - it is legit to have non-string column names
 
-        for i, row in enumerate(grouped.itertuples(), 1):
-            _, filename, frame_no, *distances = row
-            distance = distances[j - 1]
-            print(f"{j:3d} {i:3d} {frame_no:4d} {distance:.3f} {filename}")
+        if outdir:
+            # record results to a file
+            query_max.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
+
+        for i, (filename, frame_no, distance) in enumerate(query_max.itertuples(), 1):
+            print(f"{j + 1:3d} {i:3d} {frame_no:4d} {distance:.3f} {filename}")
             if outdir:
                 try:
                     img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
                     continue
-                outpath = outdir / f"{j:03d}" / f"{i:03d}.jpg"
+                outpath = outdir / f"{j + 1:03d}" / f"{i:03d}.jpg"
                 os.makedirs(outpath.parent, exist_ok=True)
                 save(outpath, img_array)
                 del img_array
