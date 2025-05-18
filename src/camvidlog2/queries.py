@@ -29,7 +29,7 @@ def load_embedding_group_dataframe(
             string_count += 1
         elif isinstance(i, FrameEmbedding):
             nda_combined_list.append(
-                frame_embedding_data.loc[(str(i.filepath), i.frame_no), :]
+                frame_embedding_data.loc[(str(i.filepath), i.frame_no), :],
             )
             frame_count += 1
         else:
