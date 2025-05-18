@@ -36,8 +36,6 @@ def test_load_embedding_group_json(tmp_path: Path) -> None:
     assert loaded_group.items[0].query == "hello world"
     # Verify the frame embedding contents
     assert loaded_group.items[1].source == "frame"
-    # Verify the frame embedding contents
-    assert loaded_group.items[1].source == "frame"
     assert loaded_group.items[1].filepath == Path("example.mp4")
     assert loaded_group.items[1].frame_no == 1
     assert isinstance(loaded_group.items[0], StringEmbedding)
