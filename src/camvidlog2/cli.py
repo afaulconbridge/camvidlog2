@@ -77,7 +77,7 @@ def query(
         if not queries:
             raise ValueError("Must provide either --json or [QUERIES]")
         embedding_group = EmbeddingGroup(
-            items=[StringEmbedding(query=q) for q in queries]
+            items=[StringEmbedding(query=q) for q in queries],
         )
 
     if outdir:
@@ -89,7 +89,8 @@ def query(
             json_out.write(embedding_group.model_dump_json(indent=2))
 
     search_embeddings = load_embedding_group_dataframe(
-        embedding_group, video_embeddings
+        embedding_group,
+        video_embeddings,
     )
 
     distances = calculate_distances(video_embeddings, search_embeddings, roll=roll)
