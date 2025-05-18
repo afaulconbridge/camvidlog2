@@ -10,6 +10,8 @@ dependencies = [
     "opencv-python-headless>=4.11.0.86",
     "pandas[feather,performance]>=2.2.3",
     "pandas-stubs>=2.2.3.250308",
+    "scikit-learn>=1.6.1",
+    "pydantic>=2.10.6",
 ]
 
 [dependency-groups]
