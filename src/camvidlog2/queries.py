@@ -10,7 +10,8 @@ from camvidlog2.data import (
 
 
 def load_embedding_group_dataframe(
-    embedding_group: EmbeddingGroup, frame_embedding_data: pd.DataFrame
+    embedding_group: EmbeddingGroup,
+    frame_embedding_data: pd.DataFrame,
 ) -> pd.DataFrame:
     embedding_strings = [
         i.query for i in embedding_group.items if isinstance(i, StringEmbedding)
@@ -52,7 +53,9 @@ def load_embedding_group_dataframe(
 
 
 def calculate_distances(
-    video_embeddings: pd.DataFrame, search_embeddings: pd.DataFrame, roll: int = 0
+    video_embeddings: pd.DataFrame,
+    search_embeddings: pd.DataFrame,
+    roll: int = 0,
 ) -> pd.DataFrame:
     # dot product of unit vectors is the alignment between them (1 = equal, 0 = perpendicular)
     # matrices must be sizes XxY and YxZ

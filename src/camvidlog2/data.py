@@ -1,6 +1,6 @@
-from pathlib import Path
 from collections.abc import Iterable
-from typing import Annotated, Literal, Union
+from pathlib import Path
+from typing import Annotated, Literal
 
 import numpy as np
 import pandas as pd
@@ -21,7 +21,7 @@ class FrameEmbedding(BaseModel):
 
 # see https://stackoverflow.com/a/70917353/932342
 AnyEmbedding = Annotated[
-    Union[StringEmbedding, FrameEmbedding], Field(discriminator="source")
+    StringEmbedding | FrameEmbedding, Field(discriminator="source")
 ]
 
 

@@ -108,6 +108,8 @@ def query(
         # this is a typing bug - it is legit to have non-string column names
 
         if outdir:
+            # ensure query output subdir exists
+            os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
             # record results to a file
             query_max.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
 
@@ -119,7 +121,6 @@ def query(
                 except FrameError:
                     continue
                 outpath = outdir / f"{j + 1:03d}" / f"{i:03d}.jpg"
-                os.makedirs(outpath.parent, exist_ok=True)
                 save(outpath, img_array)
                 del img_array
             if i >= num:
