@@ -13,38 +13,28 @@ def load_embedding_group_dataframe(
     embedding_group: EmbeddingGroup,
     frame_embedding_data: pd.DataFrame,
 ) -> pd.DataFrame:
+    # pre-calculate all the string embeddings we'll need in one go for efficiency
     embedding_strings = [
         i.query for i in embedding_group.items if isinstance(i, StringEmbedding)
     ]
     nda_strings = get_string_embeddings(embedding_strings)
 
-    embedding_frames = [
-        i for i in embedding_group.items if isinstance(i, FrameEmbedding)
-    ]
-    nda_frames = (
-        np.stack(
-            [
-                frame_embedding_data.loc[(str(f.filepath), f.frame_no)]
-                for f in embedding_frames
-            ]
-        )
-        if embedding_frames
-        else None
-    )
-
     # combine the embeddings from strings and frames, in the original order!
-
-    interleafing = [
-        (
-            nda_strings[i, :] if isinstance(e, StringEmbedding) else None,
-            nda_frames[i] if isinstance(e, FrameEmbedding) else None,
-        )
-        for i, e in enumerate(embedding_group.items)
-    ]
-
-    nda_combined = pd.DataFrame(
-        np.stack([a if a is not None else b for a, b in interleafing])
-    )
+    nda_combined_list = []
+    string_count = 0
+    frame_count = 0
+    for i in embedding_group.items:
+        if isinstance(i, StringEmbedding):
+            nda_combined_list.append(nda_strings[string_count, :])
+            string_count += 1
+        elif isinstance(i, FrameEmbedding):
+            nda_combined_list.append(
+                frame_embedding_data.loc[(str(i.filepath), i.frame_no), :]
+            )
+            frame_count += 1
+        else:
+            raise RuntimeError("Unexpected item in embedding_group")
+    nda_combined = pd.DataFrame(np.stack(nda_combined_list))
 
     # make sure column names are strings
     nda_combined.columns = [str(x) for x in nda_combined.columns]  # type: ignore
