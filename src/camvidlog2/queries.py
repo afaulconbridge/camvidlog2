@@ -20,7 +20,7 @@ def load_embedding_group_dataframe(
     nda_strings = get_string_embeddings(embedding_strings)
 
     # combine the embeddings from strings and frames, in the original order!
-    nda_combined_list = []
+    nda_combined_list: list[np.ndarray | pd.DataFrame] = []
     string_count = 0
     frame_count = 0
     for i in embedding_group.items:
@@ -33,7 +33,7 @@ def load_embedding_group_dataframe(
             )
             frame_count += 1
         else:
-            raise RuntimeError("Unexpected item in embedding_group")
+            raise TypeError("Unexpected item in embedding_group")
     nda_combined = pd.DataFrame(np.stack(nda_combined_list))
 
     # make sure column names are strings
