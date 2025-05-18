@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from camvidlog2.data import EmbeddingGroup, load_embedding_group_json
+from camvidlog2.data import (
+    EmbeddingGroup,
+    FrameEmbedding,
+    StringEmbedding,
+    load_embedding_group_json,
+)
 
 
 def test_load_embedding_group_json(tmp_path: Path) -> None:
