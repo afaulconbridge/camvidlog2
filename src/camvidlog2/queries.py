@@ -1,5 +1,8 @@
+from itertools import islice
+
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel
 
 from camvidlog2.ai import get_string_embeddings
 from camvidlog2.data import (
@@ -66,3 +69,34 @@ def calculate_distances(
         distances = distances.droplevel(0)
 
     return distances
+
+
+class Result(BaseModel):
+    rank: int
+    score: float
+    filename: str
+    frame_no: int
+
+
+def calculate_results(
+    distances: pd.Series, num: int = 15, roll: int = 0
+) -> list[Result]:
+    index_loc_max = distances.groupby("filename").idxmax()
+    # create a new dataframe of only the rows that are the max in each file
+    query_max = pd.DataFrame({"distance": distances.loc[index_loc_max.tolist()]})
+    # from the frame_no from the index as there is now only one frame per file
+    # still keep the column around so it can be referred to later
+    query_max.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
+    query_max.sort_values(
+        by="distance",
+        ascending=False,
+        inplace=True,
+    )
+
+    results = [
+        Result(rank=i, score=distance, filename=filename, frame_no=frame_no)
+        for i, (filename, frame_no, distance) in enumerate(
+            islice(query_max.itertuples(), num), 1
+        )
+    ]
+    return results
