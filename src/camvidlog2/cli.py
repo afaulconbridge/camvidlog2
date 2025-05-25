@@ -101,9 +101,9 @@ def query(
 
     # output for an average of all distances
     distances["avg"] = distances.mean(axis=1)
-    for result in calculate_results(distances["avg"], num, roll):
+    for result in calculate_results(distances["avg"], num):
         print(
-            f"avg {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}"
+            f"avg {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}",
         )
         if outdir:
             # ensure output subdir exists
@@ -119,9 +119,9 @@ def query(
 
     # output for each query separately
     for j, _ in enumerate(embedding_group.items, 0):
-        for result in calculate_results(distances[j], num, roll):
+        for result in calculate_results(distances[j], num):
             print(
-                f"{j + 1:3d} {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}"
+                f"{j + 1:3d} {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}",
             )
             if outdir:
                 # ensure output subdir exists
