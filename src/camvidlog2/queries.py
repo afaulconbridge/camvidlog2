@@ -78,9 +78,7 @@ class Result(BaseModel):
     frame_no: int
 
 
-def calculate_results(
-    distances: pd.Series, num: int = 15, roll: int = 0
-) -> list[Result]:
+def calculate_results(distances: pd.Series, num: int = 15) -> list[Result]:
     index_loc_max = distances.groupby("filename").idxmax()
     # create a new dataframe of only the rows that are the max in each file
     query_max = pd.DataFrame({"distance": distances.loc[index_loc_max.tolist()]})
@@ -96,7 +94,8 @@ def calculate_results(
     results = [
         Result(rank=i, score=distance, filename=filename, frame_no=frame_no)
         for i, (filename, frame_no, distance) in enumerate(
-            islice(query_max.itertuples(), num), 1
+            islice(query_max.itertuples(), num),
+            1,
         )
     ]
     return results
