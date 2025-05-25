@@ -1,4 +1,5 @@
 import os
+from itertools import islice
 from pathlib import Path
 from typing import Annotated
 
@@ -101,39 +102,53 @@ def query(
 
     # output for an average of all distances
     distances["avg"] = distances.mean(axis=1)
-    for result in calculate_results(distances["avg"], num):
+    results = calculate_results(distances["avg"], num)
+    if outdir:
+        # ensure output subdir exists
+        os.makedirs(outdir / "avg", exist_ok=True)
+        # record results to a file
+        results.to_csv(outdir / "avg" / "result.csv")
+    for rank, (filename, frame_no, score) in enumerate(
+        islice(results.itertuples(), num),
+        1,
+    ):
         print(
-            f"avg {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}",
+            f"avg {rank:3d} {frame_no:4d} {score:.3f} {filename}",
         )
         if outdir:
-            # ensure output subdir exists
-            os.makedirs(outdir / "avg", exist_ok=True)
+            # save the best frames
             try:
-                img_array = get_frame_by_no(result.filename, result.frame_no)
+                img_array = get_frame_by_no(filename, frame_no)
             except FrameError:
                 continue
-            outpath = outdir / "avg" / f"{result.rank:03d}.jpg"
+            outpath = outdir / "avg" / f"{rank:03d}.jpg"
             save(outpath, img_array)
             del img_array
-    # TODO output csv
 
     # output for each query separately
     for j, _ in enumerate(embedding_group.items, 0):
-        for result in calculate_results(distances[j], num):
+        results = calculate_results(distances[j], num)
+        if outdir:
+            # ensure output subdir exists
+            os.makedirs(outdir / f"{j + 1:3d}", exist_ok=True)
+            # record results to a file
+            results.to_csv(outdir / f"{j + 1:3d}" / "result.csv")
+        for rank, (filename, frame_no, score) in enumerate(
+            islice(results.itertuples(), num),
+            1,
+        ):
             print(
-                f"{j + 1:3d} {result.rank:3d} {result.frame_no:4d} {result.score:.3f} {result.filename}",
+                f"{j + 1:3d} {rank:3d} {frame_no:4d} {score:.3f} {filename}",
             )
             if outdir:
-                # ensure output subdir exists
-                os.makedirs(outdir / f"{j + 1:3d}", exist_ok=True)
+                # save the best frames
                 try:
-                    img_array = get_frame_by_no(result.filename, result.frame_no)
+                    img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
                     continue
-                outpath = outdir / f"{j + 1:3d}" / f"{result.rank:03d}.jpg"
+                outpath = outdir / f"{j + 1:3d}" / f"{rank:03d}.jpg"
                 save(outpath, img_array)
                 del img_array
-        # TODO output csv
 
 
 if __name__ == "__main__":
