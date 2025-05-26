@@ -68,7 +68,7 @@ def calculate_distances(
     return distances
 
 
-def calculate_results(distances: pd.Series, num: int = 15) -> pd.DataFrame:
+def calculate_results(distances: pd.Series) -> pd.DataFrame:
     # get the index of the most aligned frame in each file
     index_max = distances.groupby("filename").idxmax()
     # create a new dataframe of only the rows that are the max in each file

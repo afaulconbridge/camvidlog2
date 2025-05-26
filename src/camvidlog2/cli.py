@@ -102,12 +102,13 @@ def query(
 
     # output for an average of all distances
     distances["avg"] = distances.mean(axis=1)
-    results = calculate_results(distances["avg"], num)
+    results = calculate_results(distances["avg"])
     if outdir:
         # ensure output subdir exists
         os.makedirs(outdir / "avg", exist_ok=True)
-        # record results to a file
+        # record all results to a file
         results.to_csv(outdir / "avg" / "result.csv")
+    # for top results, print and save image
     for rank, (filename, frame_no, score) in enumerate(
         islice(results.itertuples(), num),
         1,
@@ -127,12 +128,13 @@ def query(
 
     # output for each query separately
     for j, _ in enumerate(embedding_group.items, 0):
-        results = calculate_results(distances[j], num)
+        results = calculate_results(distances[j])
         if outdir:
             # ensure output subdir exists
             os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
-            # record results to a file
+            # record all results to a file
             results.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
+        # for top results, print and save image
         for rank, (filename, frame_no, score) in enumerate(
             islice(results.itertuples(), num),
             1,
