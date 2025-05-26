@@ -1,4 +1,5 @@
 import os
+from itertools import islice
 from pathlib import Path
 from typing import Annotated
 
@@ -13,7 +14,11 @@ from camvidlog2.data import (
     load_embedding_group_json,
 )
 from camvidlog2.data import load as data_load
-from camvidlog2.queries import calculate_distances, load_embedding_group_dataframe
+from camvidlog2.queries import (
+    calculate_distances,
+    calculate_results,
+    load_embedding_group_dataframe,
+)
 from camvidlog2.vid import FrameError, generate_frames_cv2, get_frame_by_no, save
 
 app = typer.Typer()
@@ -95,37 +100,57 @@ def query(
 
     distances = calculate_distances(video_embeddings, search_embeddings, roll=roll)
 
-    # handle each query separately from this point onward
-    # get the frame in each file that is the closest match
-    index_loc_max = distances.groupby("filename").idxmax()
-    for j, _ in enumerate(embedding_group.items, 0):
-        query_max = pd.DataFrame(distances.loc[index_loc_max[j].tolist()][j])
-        query_max.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
-        query_max.sort_values(
-            by=j,
-            ascending=False,
-            inplace=True,
-        )  # type: ignore
-        # this is a typing bug - it is legit to have non-string column names
-
+    # output for an average of all distances
+    distances["avg"] = distances.mean(axis=1)
+    results = calculate_results(distances["avg"])
+    if outdir:
+        # ensure output subdir exists
+        os.makedirs(outdir / "avg", exist_ok=True)
+        # record all results to a file
+        results.to_csv(outdir / "avg" / "result.csv")
+    # for top results, print and save image
+    for rank, (filename, frame_no, score) in enumerate(
+        islice(results.itertuples(), num),
+        1,
+    ):
+        print(
+            f"avg {rank:3d} {frame_no:4d} {score:.3f} {filename}",
+        )
         if outdir:
-            # ensure query output subdir exists
-            os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
-            # record results to a file
-            query_max.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
+            # save the best frames
+            try:
+                img_array = get_frame_by_no(filename, frame_no)
+            except FrameError:
+                continue
+            outpath = outdir / "avg" / f"{rank:03d}.jpg"
+            save(outpath, img_array)
+            del img_array
 
-        for i, (filename, frame_no, distance) in enumerate(query_max.itertuples(), 1):
-            print(f"{j + 1:3d} {i:3d} {frame_no:4d} {distance:.3f} {filename}")
+    # output for each query separately
+    for j, _ in enumerate(embedding_group.items, 0):
+        results = calculate_results(distances[j])
+        if outdir:
+            # ensure output subdir exists
+            os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
+            # record all results to a file
+            results.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
+        # for top results, print and save image
+        for rank, (filename, frame_no, score) in enumerate(
+            islice(results.itertuples(), num),
+            1,
+        ):
+            print(
+                f"{j + 1:3d} {rank:3d} {frame_no:4d} {score:.3f} {filename}",
+            )
             if outdir:
+                # save the best frames
                 try:
                     img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
                     continue
-                outpath = outdir / f"{j + 1:03d}" / f"{i:03d}.jpg"
+                outpath = outdir / f"{j + 1:03d}" / f"{rank:03d}.jpg"
                 save(outpath, img_array)
                 del img_array
-            if i >= num:
-                break
 
 
 if __name__ == "__main__":

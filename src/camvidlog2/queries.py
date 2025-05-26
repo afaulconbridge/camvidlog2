@@ -66,3 +66,20 @@ def calculate_distances(
         distances = distances.droplevel(0)
 
     return distances
+
+
+def calculate_results(distances: pd.Series) -> pd.DataFrame:
+    # get the index of the most aligned frame in each file
+    index_max = distances.groupby("filename").idxmax()
+    # create a new dataframe of only the rows that are the max in each file
+    results = pd.DataFrame({"distance": distances.loc[index_max.tolist()]})
+    # from the frame_no from the index as there is now only one frame per file
+    # still keep the column around so it can be referred to later
+    results.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
+    # sort the files by best first
+    results.sort_values(
+        by="distance",
+        ascending=False,
+        inplace=True,
+    )
+    return results
