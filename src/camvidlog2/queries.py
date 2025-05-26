@@ -72,14 +72,14 @@ def calculate_results(distances: pd.Series, num: int = 15) -> pd.DataFrame:
     # get the index of the most aligned frame in each file
     index_max = distances.groupby("filename").idxmax()
     # create a new dataframe of only the rows that are the max in each file
-    df = pd.DataFrame({"distance": distances.loc[index_max.tolist()]})
+    results = pd.DataFrame({"distance": distances.loc[index_max.tolist()]})
     # from the frame_no from the index as there is now only one frame per file
     # still keep the column around so it can be referred to later
-    df.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
+    results.reset_index(names=["filename", "frame_no"], level=[1], inplace=True)
     # sort the files by best first
-    df.sort_values(
+    results.sort_values(
         by="distance",
         ascending=False,
         inplace=True,
     )
-    return df
+    return results
