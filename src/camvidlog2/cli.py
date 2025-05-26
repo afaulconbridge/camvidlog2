@@ -130,9 +130,9 @@ def query(
         results = calculate_results(distances[j], num)
         if outdir:
             # ensure output subdir exists
-            os.makedirs(outdir / f"{j + 1:3d}", exist_ok=True)
+            os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
             # record results to a file
-            results.to_csv(outdir / f"{j + 1:3d}" / "result.csv")
+            results.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
         for rank, (filename, frame_no, score) in enumerate(
             islice(results.itertuples(), num),
             1,
@@ -146,7 +146,7 @@ def query(
                     img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
                     continue
-                outpath = outdir / f"{j + 1:3d}" / f"{rank:03d}.jpg"
+                outpath = outdir / f"{j + 1:03d}" / f"{rank:03d}.jpg"
                 save(outpath, img_array)
                 del img_array
 
