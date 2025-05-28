@@ -26,13 +26,18 @@ AnyEmbedding = Annotated[
 
 
 class EmbeddingGroup(BaseModel):
+    name: str = ""
     items: list[AnyEmbedding]
 
 
-def load_embedding_group_json(filename: str | Path) -> EmbeddingGroup:
+class EmbeddingCollection(BaseModel):
+    groups: list[EmbeddingGroup]
+
+
+def load_embedding_json(filename: str | Path) -> EmbeddingCollection:
     with open(Path(filename), "r") as json_file:
         json_string = json_file.read()
-    return EmbeddingGroup.model_validate_json(json_string)
+    return EmbeddingCollection.model_validate_json(json_string)
 
 
 def load(path: Path) -> pd.DataFrame | None:

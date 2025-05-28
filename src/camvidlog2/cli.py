@@ -8,16 +8,17 @@ import typer
 
 from camvidlog2.ai import get_video_embeddings
 from camvidlog2.data import (
+    EmbeddingCollection,
     EmbeddingGroup,
     StringEmbedding,
     create,
-    load_embedding_group_json,
+    load_embedding_json,
 )
 from camvidlog2.data import load as data_load
 from camvidlog2.queries import (
     calculate_distances,
     calculate_results,
-    load_embedding_group_dataframe,
+    load_embedding_dataframe,
 )
 from camvidlog2.vid import FrameError, generate_frames_cv2, get_frame_by_no, save
 
@@ -77,12 +78,16 @@ def query(
     if json:
         if queries:
             raise ValueError("Cannot use --json and [QUERIES]")
-        embedding_group = load_embedding_group_json(json)
+        embedding_collection = load_embedding_json(json)
     else:
         if not queries:
             raise ValueError("Must provide either --json or [QUERIES]")
-        embedding_group = EmbeddingGroup(
-            items=[StringEmbedding(query=q) for q in queries],
+        embedding_collection = EmbeddingCollection(
+            groups=[
+                EmbeddingGroup(
+                    items=[StringEmbedding(query=q) for q in queries],
+                )
+            ]
         )
 
     if outdir:
@@ -91,56 +96,41 @@ def query(
         os.makedirs(outdir, exist_ok=True)
         # record what search was run
         with open(outdir / "query.json", "w") as json_out:
-            json_out.write(embedding_group.model_dump_json(indent=2))
+            json_out.write(embedding_collection.model_dump_json(indent=2))
 
-    search_embeddings = load_embedding_group_dataframe(
-        embedding_group,
+    search_embeddings = load_embedding_dataframe(
+        embedding_collection,
         video_embeddings,
     )
 
     distances = calculate_distances(video_embeddings, search_embeddings, roll=roll)
 
-    # output for an average of all distances
-    distances["avg"] = distances.mean(axis=1)
-    results = calculate_results(distances["avg"])
-    if outdir:
-        # ensure output subdir exists
-        os.makedirs(outdir / "avg", exist_ok=True)
-        # record all results to a file
-        results.to_csv(outdir / "avg" / "result.csv")
-    # for top results, print and save image
-    for rank, (filename, frame_no, score) in enumerate(
-        islice(results.itertuples(), num),
-        1,
-    ):
-        print(
-            f"avg {rank:3d} {frame_no:4d} {score:.3f} {filename}",
-        )
-        if outdir:
-            # save the best frames
-            try:
-                img_array = get_frame_by_no(filename, frame_no)
-            except FrameError:
-                continue
-            outpath = outdir / "avg" / f"{rank:03d}.jpg"
-            save(outpath, img_array)
-            del img_array
+    distances_index = 0
+    for j, embedding_group in enumerate(embedding_collection.groups):
+        # calculate the average distance over the embeddings in this group
+        group_distances = distances.iloc[
+            :, distances_index : distances_index + len(embedding_group.items) + 1
+        ]
+        mean_distances = group_distances.mean(axis=1)
+        # update the index pointer
+        distances_index += len(embedding_group.items)
+        # calculate the results
+        results = calculate_results(mean_distances)
 
-    # output for each query separately
-    for j, _ in enumerate(embedding_group.items, 0):
-        results = calculate_results(distances[j])
+        group_name = embedding_group.name if embedding_group.name else f"{j + 1:03d}"
+
         if outdir:
             # ensure output subdir exists
-            os.makedirs(outdir / f"{j + 1:03d}", exist_ok=True)
+            os.makedirs(outdir / group_name, exist_ok=True)
             # record all results to a file
-            results.to_csv(outdir / f"{j + 1:03d}" / "result.csv")
+            results.to_csv(outdir / group_name / "result.csv")
         # for top results, print and save image
         for rank, (filename, frame_no, score) in enumerate(
             islice(results.itertuples(), num),
             1,
         ):
             print(
-                f"{j + 1:3d} {rank:3d} {frame_no:4d} {score:.3f} {filename}",
+                f"{group_name} {rank:3d} {frame_no:4d} {score:.3f} {filename}",
             )
             if outdir:
                 # save the best frames
@@ -148,7 +138,7 @@ def query(
                     img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
                     continue
-                outpath = outdir / f"{j + 1:03d}" / f"{rank:03d}.jpg"
+                outpath = outdir / group_name / f"{rank:03d}.jpg"
                 save(outpath, img_array)
                 del img_array
 
