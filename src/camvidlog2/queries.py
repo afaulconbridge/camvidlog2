@@ -69,7 +69,7 @@ def calculate_distances(
         # avoid index duplication bug: https://stackoverflow.com/questions/42119793/doing-a-groupby-and-rolling-window-on-a-pandas-dataframe-with-a-multilevel-index
         distances = distances.droplevel(0)
         # if there aren't enough to roll, pandas will create na results; discard these
-        distances.dropna()
+        distances.dropna(inplace=True)
 
     return distances
 

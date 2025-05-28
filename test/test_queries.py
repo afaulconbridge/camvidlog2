@@ -26,14 +26,15 @@ def test_strings_load_embedding_via_json_filename() -> None:
 
 
 def test_frame_load_embedding_via_json_filename(
-    video_path: Path, video_embeddings_path: Path
+    video_path: Path,
+    video_embeddings_path: Path,
 ) -> None:
     embedding_collection = EmbeddingCollection(
         groups=[
             EmbeddingGroup(
                 items=[FrameEmbedding(filepath=video_path, frame_no=1)],
             )
-        ]
+        ],
     )
     video_embeddings = pd.read_feather(video_embeddings_path)
 
@@ -45,7 +46,8 @@ def test_frame_load_embedding_via_json_filename(
 
 
 def test_frame_load_embedding_via_json_filename_multi_group(
-    video_path: Path, video_embeddings_path: Path
+    video_path: Path,
+    video_embeddings_path: Path,
 ) -> None:
     embedding_collection = EmbeddingCollection(
         groups=[
@@ -55,7 +57,7 @@ def test_frame_load_embedding_via_json_filename_multi_group(
             EmbeddingGroup(
                 items=[FrameEmbedding(filepath=video_path, frame_no=2)],
             ),
-        ]
+        ],
     )
     video_embeddings = pd.read_feather(video_embeddings_path)
 
@@ -68,7 +70,8 @@ def test_frame_load_embedding_via_json_filename_multi_group(
 
 
 def test_frame_load_embedding_via_json_filename_multi_embeddings(
-    video_path: Path, video_embeddings_path: Path
+    video_path: Path,
+    video_embeddings_path: Path,
 ) -> None:
     embedding_collection = EmbeddingCollection(
         groups=[

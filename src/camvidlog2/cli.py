@@ -86,7 +86,7 @@ def query(
             groups=[
                 EmbeddingGroup(
                     items=[StringEmbedding(query=q) for q in queries],
-                )
+                ),
             ]
         )
 
@@ -109,7 +109,7 @@ def query(
     for j, embedding_group in enumerate(embedding_collection.groups):
         # calculate the average distance over the embeddings in this group
         group_distances = distances.iloc[
-            :, distances_index : distances_index + len(embedding_group.items) + 1
+            :, distances_index : distances_index + len(embedding_group.items)
         ]
         mean_distances = group_distances.mean(axis=1)
         # update the index pointer
