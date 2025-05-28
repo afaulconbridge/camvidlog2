@@ -1,33 +1,42 @@
 from pathlib import Path
 
 from camvidlog2.data import (
+    EmbeddingCollection,
     EmbeddingGroup,
     FrameEmbedding,
     StringEmbedding,
-    load_embedding_group_json,
+    load_embedding_json,
 )
 
 
-def test_load_embedding_group_json(tmp_path: Path) -> None:
+def test_load_embedding_json(tmp_path: Path) -> None:
     data = """{
-    "items":[
+  "groups": [
+    {
+      "items": [
         {
-            "source": "string",
-            "query": "hello world"
+          "source": "string",
+          "query": "hello world"
         },
         {
-            "source": "frame",
-            "filepath": "example.mp4",
-            "frame_no": 1
+          "source": "frame",
+          "filepath": "example.mp4",
+          "frame_no": 1
         }
-    ]
+      ]
+    }
+  ]
 }
+
 """
     tmp_path.mkdir(parents=True, exist_ok=True)
     with open(tmp_path / "data.json", "w") as f:
         f.write(data)
 
-    loaded_group = load_embedding_group_json(tmp_path / "data.json")
+    loaded_collection = load_embedding_json(tmp_path / "data.json")
+    assert isinstance(loaded_collection, EmbeddingCollection)
+    assert len(loaded_collection.groups) == 1
+    loaded_group = loaded_collection.groups[0]
 
     assert isinstance(loaded_group, EmbeddingGroup)
     assert len(loaded_group.items) == 2
