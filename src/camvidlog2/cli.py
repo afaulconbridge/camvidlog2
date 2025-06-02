@@ -15,6 +15,7 @@ from camvidlog2.data import (
     load_embedding_json,
 )
 from camvidlog2.data import load as data_load
+from camvidlog2.plots import plot_distances
 from camvidlog2.queries import (
     calculate_distances,
     calculate_results,
@@ -124,6 +125,8 @@ def query(
             os.makedirs(outdir / group_name, exist_ok=True)
             # record all results to a file
             results.to_csv(outdir / group_name / "result.csv")
+            # draw plot(s) for output
+            plot_distances(results, outdir / group_name / "result.png")
         # for top results, print and save image
         for rank, (filename, frame_no, score) in enumerate(
             islice(results.itertuples(), num),
