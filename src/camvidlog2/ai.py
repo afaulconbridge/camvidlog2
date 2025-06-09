@@ -52,7 +52,7 @@ def get_string_embedding(query: str) -> np.ndarray:
                   with magnitude close to 1.0
 
     Notes:
-        - This uses the BioClip model from https://huggingface.co/hf-hub/imageomics/bioclip
+        - This uses the BioClip model from https://huggingface.co/imageomics/bioclip
         - Each embedding is normalized using L2 normalization
     """
     return get_string_embeddings([query])[0]
@@ -69,7 +69,7 @@ def get_string_embeddings(queries: Iterable[str]) -> np.ndarray:
             embedding vector for a query, with magnitude close to 1.0
 
     Notes:
-        - This uses the BioClip model from https://huggingface.co/hf-hub/imageomics/bioclip
+        - This uses the BioClip model from https://huggingface.co/imageomics/bioclip
         - The embeddings are generated in batches for efficiency
         - Each embedding is normalized using L2 normalization
     """
