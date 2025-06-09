@@ -62,7 +62,7 @@ def get_string_embeddings(queries: Iterable[str]) -> np.ndarray:
     """Get 512-dimensional embeddings for multiple text queries using BioClip model.
 
     Args:
-        queries: A list of text strings to be embedded
+        queries: An iterable of text strings to be embedded
 
     Returns:
         np.ndarray: A 2D array of shape (n, 512) where each row contains the L2-normalized
