@@ -1,4 +1,5 @@
 import math
+import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -9,10 +10,14 @@ import numpy as np
 
 
 class FrameError(Exception):
+    """Exception raised when there's an issue related to video frames."""
+
     pass
 
 
 class Colourspace(Enum):
+    """Enum representing different color spaces."""
+
     RGB = "rgb"
     greyscale = "greyscale"
     boolean = "boolean"  # mask
@@ -22,17 +27,12 @@ class Resolution(Enum):
     # Y,X to match openCV
     VGA = (480, 854)  # FWVGA
     SD = (720, 1280)
-    HD = (1080, 1920)  # 2k, full HD
+    HD = (1080, 1920)  # 2K, full HD
     UHD = (2160, 3840)  # 4K, UHD
 
 
 @dataclass(frozen=True)
 class Region:
-    x1: int
-    y1: int
-    x2: int
-    y2: int
-
     """Represents a rectangular region in a 2D space.
 
     The region is defined by its top-left (x1, y1) and bottom-right (x2, y2)
@@ -46,6 +46,11 @@ class Region:
         y2 (int): The y-coordinate of the bottom-right corner.
     """
 
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
     def __post_init__(self):
         if not (self.x2 > self.x1 and self.y2 > self.y1):
             raise ValueError("Invalid region dimensions. Ensure x2 > x1 and y2 > y1.")
@@ -53,6 +58,21 @@ class Region:
 
 @dataclass(frozen=True)
 class VideoFileStats:
+    """Contains metadata about a video file.
+
+    Attributes:
+        fps (float): Frames per second of the video
+        frame_count (int): Total number of frames in the video
+        x (int): Width of the video frames in pixels
+        y (int): Height of the video frames in pixels
+        colourspace (Colourspace): The color space of the video frames
+
+    Properties:
+        shape (tuple[int, int, int]): Shape of the video frames as (height, width, channels)
+        nbytes (int): Total bytes required to store one frame
+        frame_duration (int): Duration of a single frame in milliseconds
+    """
+
     fps: float
     frame_count: int
     x: int
@@ -61,11 +81,13 @@ class VideoFileStats:
 
     @property
     def shape(self) -> tuple[int, int, int]:
+        """Returns the shape of the video frames as (height, width, channels)."""
         # Y,X to match openCV
         return (self.y, self.x, 1 if self.colourspace == Colourspace.greyscale else 3)
 
     @property
     def nbytes(self) -> int:
+        """Calculates and returns the total bytes required to store one frame."""
         match self.colourspace:
             case Colourspace.greyscale:
                 return self.x * self.y
@@ -81,6 +103,17 @@ class VideoFileStats:
 
 
 def get_video_stats(filename: str | Path) -> VideoFileStats:
+    """Retrieves metadata about a video file.
+
+    Args:
+        filename (str | Path): Path to the video file
+
+    Returns:
+        VideoFileStats: Object containing video metadata
+
+    Raises:
+        RuntimeError: If unable to read frames from the video
+    """
     video_capture = None
     try:
         video_capture = cv2.VideoCapture(str(filename), cv2.CAP_ANY)
@@ -114,13 +147,25 @@ def get_video_stats(filename: str | Path) -> VideoFileStats:
 def generate_frames_cv2(
     filename: str | Path, *, start_ms: float | None = None
 ) -> Generator[tuple[int, np.ndarray], None, None]:
+    """Generates video frames with OpenCV.
+
+    Args:
+        filename (str | Path): Path to the video file
+        start_ms (float | None): Optional start time in milliseconds
+
+    Yields:
+        tuple[int, np.ndarray]: A tuple containing (frame_number, frame_array)
+
+    Raises:
+        FrameError: If unable to seek to the requested position
+    """
     video_capture = cv2.VideoCapture(str(filename), cv2.CAP_ANY)
 
     # cv2.CAP_PROP_POS_FRAMES is unreliable - see https://github.com/opencv/opencv/issues/9053
     if start_ms is not None:
         set_success = video_capture.set(cv2.CAP_PROP_POS_MSEC, start_ms)
         if not set_success:
-            raise RuntimeError("Unable to seek video file")
+            raise FrameError("Unable to seek video file")
 
     success = True
     while success:
@@ -132,6 +177,18 @@ def generate_frames_cv2(
 
 
 def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
+    """Retrieves a specific frame from a video file.
+
+    Args:
+        filename (str | Path): Path to the video file
+        frame_no (int): The 1-based index of the frame to retrieve
+
+    Returns:
+        np.ndarray: The requested video frame as a numpy array
+
+    Raises:
+        FrameError: If frame_no is invalid or out of range
+    """
     if frame_no <= 0:
         raise FrameError("Frame number must be positive")
 
@@ -157,6 +214,7 @@ def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
 
 
 def save(filename: str | Path, array: np.ndarray) -> None:
+    os.makedirs(Path(filename).parent, exist_ok=True)
     result = cv2.imwrite(str(filename), array)
     if not result:
         raise RuntimeError("Failed to write file")
@@ -168,8 +226,19 @@ def slice_frame(
     slice_height: int = 224,
     slice_overlap: float = 0.25,
 ) -> Generator[tuple[Region, np.ndarray], None, None]:
-    """
-    Slice a frame into smaller frames
+    """Slices a frame into smaller overlapping regions.
+
+    Args:
+        frame (np.ndarray): The input frame to be sliced
+        slice_width (int): Width of each slice. Defaults to 224
+        slice_height (int): Height of each slice. Defaults to 224
+        slice_overlap (float): Proportion of overlap between slices. Defaults to 0.25
+
+    Yields:
+        tuple[Region, np.ndarray]: A tuple containing (region, subframe)
+
+    Raises:
+        ValueError: If invalid dimensions or overlap values are provided
     """
     if slice_width < 1:
         raise ValueError("slcie width must be at least 1")
