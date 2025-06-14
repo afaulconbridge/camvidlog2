@@ -1,3 +1,4 @@
+import contextlib
 import math
 import os
 from dataclasses import dataclass
@@ -218,6 +219,37 @@ def save(filename: str | Path, array: np.ndarray) -> None:
     result = cv2.imwrite(str(filename), array)
     if not result:
         raise RuntimeError("Failed to write file")
+
+
+@contextlib.contextmanager
+def save_video(
+    output_path: Path | str, stats: VideoFileStats, codex: str = "mp4v"
+) -> Generator[cv2.VideoWriter, None, None]:
+    """
+    Saves a video by creating a VideoWriter object and yielding it as a context manager.
+
+    Note: VideoWriter expects BGR format frames
+
+    Args:
+        output_path (Path | str): Path to the output video file.
+        stats (VideoFileStats): Statistics of the input video file (FPS, dimensions).
+        codex (str, optional): Codec to use for writing the output video. Defaults to "mp4v".
+
+    Yields:
+        cv2.VideoWriter: A VideoWriter object that can be used to write frames to the output video.
+    """
+    fourcc = cv2.VideoWriter_fourcc(*codex)
+    out = cv2.VideoWriter(
+        str(output_path),
+        fourcc,
+        stats.fps,
+        (stats.x, stats.y),
+        isColor=True,
+    )
+    try:
+        yield out
+    finally:
+        out.release()
 
 
 def slice_frame(

@@ -6,9 +6,11 @@ import pytest
 from camvidlog2.vid import (
     Colourspace,
     Region,
+    VideoFileStats,
     generate_frames_cv2,
     get_frame_by_no,
     get_video_stats,
+    save_video,
     slice_frame,
 )
 
@@ -72,3 +74,40 @@ def test_slice_frame():
         assert region.y2 - region.y1 == slice_size
 
     assert i == 9
+
+
+def test_save_video(tmp_path: Path):
+    # Create temporary output path
+    output_path = tmp_path / "test_output.mp4"
+
+    # Generate sample frames (3 frames of different colors)
+    red_frame = np.zeros((256, 256, 3), dtype=np.uint8)
+    red_frame[:, :, 2] = 255
+    green_frame = np.zeros((256, 256, 3), dtype=np.uint8)
+    green_frame[:, :, 1] = 255
+    blue_frame = np.zeros((256, 256, 3), dtype=np.uint8)
+    blue_frame[:, :, 0] = 255
+
+    # Create video stats for our test frames
+    test_video_stats = VideoFileStats(
+        fps=30.0, frame_count=3, x=256, y=256, colourspace=Colourspace.RGB
+    )
+
+    # Use save_video to write the frames
+    with save_video(output_path, test_video_stats) as writer:
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(red_frame)
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(green_frame)
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(blue_frame)
+
+    # Verify the output video file
+    stats = get_video_stats(output_path)
+
+    assert stats.frame_count == 89  # rounds down
+    assert stats.colourspace == Colourspace.RGB
+    assert stats.fps == 30.0
+
+    # Clean up the test file
+    output_path.unlink()
