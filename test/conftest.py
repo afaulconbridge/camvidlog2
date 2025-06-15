@@ -88,7 +88,9 @@ streams:
         "--config",
         str(config_path),
     ]
-    with subprocess.Popen(go2rtc_command):
+
+    process = subprocess.Popen(go2rtc_command)
+    try:
 
         def is_rtsp_stream_ready(rtsp_address):
             """
@@ -127,3 +129,11 @@ streams:
             )
 
         yield rtsp_address
+    finally:
+        # Stop the ffmpeg process always
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
