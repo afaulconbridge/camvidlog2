@@ -28,7 +28,7 @@ jobs:
 
       - name: Setup extra dependencies
         id: setup-deps-extra
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
           packages: ffmpeg
           version: 1.0
