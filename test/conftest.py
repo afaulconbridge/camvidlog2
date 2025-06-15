@@ -146,4 +146,8 @@ streams:
     finally:
         # Stop the ffmpeg process always
         process.terminate()
-        process.wait()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
