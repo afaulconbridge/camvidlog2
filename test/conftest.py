@@ -106,9 +106,6 @@ streams:
         str(config_path),
     ]
     process = subprocess.Popen(go2rtc_command)
-    print(process.returncode)
-    print(process.stderr)
-    print(process.stdout)
     try:
 
         def is_rtsp_stream_ready(rtsp_address):
@@ -117,14 +114,16 @@ streams:
             """
             try:
                 # Use ffmpeg to probe the stream.  A quick probe is usually sufficient.
-                ffmpeg.probe(rtsp_address, timeout=1)
+                result = ffmpeg.probe(rtsp_address, timeout=1)
                 return True
             except ffmpeg.Error as e:
                 # If probing fails, the stream isn't ready.
                 print(f"Stream not ready: {e}")  # Print the error for debugging
+                print(result)
                 return False
             except Exception as e:
                 print(f"Unexpected error: {e}")
+                print(result)
                 return False
 
         # Poll the RTSP server until it's ready
