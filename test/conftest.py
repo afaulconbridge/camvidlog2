@@ -106,6 +106,9 @@ streams:
         str(config_path),
     ]
     process = subprocess.Popen(go2rtc_command)
+    print(process.returncode)
+    print(process.stderr)
+    print(process.stdout)
     try:
 
         def is_rtsp_stream_ready(rtsp_address):
