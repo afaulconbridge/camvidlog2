@@ -1,6 +1,5 @@
 import os
 import os.path
-import random
 import socket
 import subprocess
 import time
@@ -64,35 +63,19 @@ def fixture_rtsp_server(video_path: Path, tmp_path_factory: pytest.TempPathFacto
         str: The RTSP server address.
     """
 
-    def is_port_free(port):
-        """Checks if a port is free."""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.bind(("localhost", port))
-            return True
-        except socket.error:
-            return False
-        finally:
-            sock.close()
+    # Ask OS for free port to use
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("localhost", 0))
+        port = s.getsockname()[1]
 
-    # Choose a random port and check if it's free
-    for _ in range(10):  # Try up to 10 times to find a free port
-        random_port = random.randint(
-            10000, 65535
-        )  # Choose a port in the dynamic/private range
-        if is_port_free(random_port):
-            break
-    else:
-        raise Exception("Could not find a free port after 10 attempts")
-
-    rtsp_address = f"rtsp://localhost:{random_port}/test"
+    rtsp_address = f"rtsp://localhost:{port}/test"
 
     # Create go2rtc.yaml dynamically
     config_path = tmp_path_factory.mktemp("go2rtc") / "go2rtc.yaml"
     with open(config_path, "w", encoding="utf-8") as f:
         f.write(f"""
 rtsp:
-  listen: ":{random_port}"
+  listen: ":{port}"
 
 streams:
   test: "ffmpeg:{video_path}#loop"
@@ -123,7 +106,7 @@ streams:
                 print(e.stderr)
                 print(result)
                 return False
-            except Exception as e:
+            except subprocess.TimeoutExpired as e:
                 print(f"Unexpected error: {e}")
                 print(result)
                 return False
@@ -135,11 +118,10 @@ streams:
             if is_rtsp_stream_ready(rtsp_address):
                 print("RTSP stream is ready.")
                 break
-            else:
-                print(
-                    f"Attempt {attempt + 1}/{max_attempts}: Stream not ready. Waiting {delay} seconds..."
-                )
-                time.sleep(delay)
+            print(
+                f"Attempt {attempt + 1}/{max_attempts}: Stream not ready. Waiting {delay} seconds..."
+            )
+            time.sleep(delay)
         else:
             raise RuntimeError(
                 "RTSP stream did not become ready within the allowed time."
