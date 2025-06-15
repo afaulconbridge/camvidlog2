@@ -22,9 +22,30 @@ jobs:
         id: setup-python
         run: uv python install
 
-      - name: Setup dependencies
+      - name: Setup python dependencies
         id: setup-deps
         run: uv sync --locked --all-extras --dev
+
+      - name: Setup apt dependencies
+        id: setup-deps-extra
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+        # ideally want to cache this, and all its dependencies!
+
+      - name: Cache go2rtc binary
+        # will automatically cache at end of process
+        id: cache-go2rtc
+        uses: actions/cache@v4
+        with:
+          path: ./go2rtc
+          key: go2rtc-v1-v1.9.9-${{runner.os}}-${{runner.arch}}
+
+      - name: Download go2rtc if not cached
+        if: steps.cache-go2rtc.outputs.cache-hit != 'true'
+        run: |
+          wget -O ./go2rtc https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_linux_amd64
+          chmod +x ./go2rtc
 
       - name: Run pytest
         id: pytest
