@@ -26,7 +26,9 @@ def test_generate_frames_cv2(video_path: Path):
 
 
 def test_generate_frames_cv2_rtsp(rtsp_server: str):
+    seen = 0
     for frame_no, array in enumerate(generate_frames_cv2_rtsp(rtsp_server)):
+        seen += 1
         assert isinstance(array, np.ndarray)
         assert array.ndim == 3
         assert array.shape == (2160, 3840, 3)  # 4k colour
@@ -34,6 +36,7 @@ def test_generate_frames_cv2_rtsp(rtsp_server: str):
         if frame_no > 30:
             # stream will loop by itself indefinately
             break
+    assert seen > 0
 
 
 @pytest.mark.parametrize("frame_no", [1, 42, 140])
