@@ -112,6 +112,7 @@ streams:
             """
             Checks if the RTSP stream is ready by attempting to read from it.
             """
+            result = None
             try:
                 # Use ffmpeg to probe the stream.  A quick probe is usually sufficient.
                 result = ffmpeg.probe(rtsp_address, timeout=1)
@@ -119,6 +120,7 @@ streams:
             except ffmpeg.Error as e:
                 # If probing fails, the stream isn't ready.
                 print(f"Stream not ready: {e}")  # Print the error for debugging
+                print(e.stderr)
                 print(result)
                 return False
             except Exception as e:
