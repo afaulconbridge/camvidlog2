@@ -7,14 +7,14 @@ import time
 from pathlib import Path
 
 import ffmpeg
-from pytest import TempPathFactory, fixture
+import pytest
 
 from camvidlog2.ai import get_video_embeddings
 from camvidlog2.data import create
 from camvidlog2.vid import generate_frames_cv2
 
 
-@fixture(name="data_directory", scope="session")
+@pytest.fixture(name="data_directory", scope="session")
 def fixture_data_directory() -> Path:
     data_path = Path(os.path.dirname(os.path.realpath(__file__))) / "data"
     assert data_path.exists()
@@ -22,7 +22,7 @@ def fixture_data_directory() -> Path:
     return data_path
 
 
-@fixture(name="video_path", scope="session")
+@pytest.fixture(name="video_path", scope="session")
 def fixture_video_path(data_directory: Path) -> Path:
     video_path = data_directory / "test.mp4"
     assert video_path.exists()
@@ -30,7 +30,7 @@ def fixture_video_path(data_directory: Path) -> Path:
     return video_path
 
 
-@fixture(name="video_embeddings_path", scope="session")
+@pytest.fixture(name="video_embeddings_path", scope="session")
 def fixture_video_embeddings_path(video_path: Path) -> Path:
     # create a database
     db_path = video_path.parent / "test.feather"
@@ -45,8 +45,8 @@ def fixture_video_embeddings_path(video_path: Path) -> Path:
     return db_path
 
 
-@fixture(name="rtsp_server", scope="session")
-def fixture_rtsp_server(video_path: Path, tmp_path_factory: TempPathFactory):
+@pytest.fixture(name="rtsp_server", scope="session")
+def fixture_rtsp_server(video_path: Path, tmp_path_factory: pytest.TempPathFactory):
     """
     Pytest fixture that starts an RTSP server using ffmpeg-python with a randomized port.
 
