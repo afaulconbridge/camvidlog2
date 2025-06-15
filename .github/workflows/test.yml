@@ -26,6 +26,13 @@ jobs:
         id: setup-deps
         run: uv sync --locked --all-extras --dev
 
+      - name: Setup extra dependencies
+        id: setup-deps-extra
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: ffmpeg
+          version: 1.0
+
       - name: Cache go2rtc binary
         # will automatically cache at end of process
         id: cache-go2rtc
