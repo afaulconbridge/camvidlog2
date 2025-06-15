@@ -13,13 +13,9 @@ import numpy as np
 class FrameError(Exception):
     """Exception raised when related to video frames."""
 
-    pass
-
 
 class RTSPError(Exception):
     """Exception raised when related to RTSP streaming."""
-
-    pass
 
 
 class Colourspace(Enum):
