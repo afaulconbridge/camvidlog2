@@ -28,7 +28,7 @@ jobs:
 
       - name: Setup go2rtc
         id: setup-go2rtc
-        run:
+        run: |
           wget https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_linux_amd64
           mv go2rtc_linux_amd64 go2rtc
           chmod +x go2rtc
