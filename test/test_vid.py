@@ -8,6 +8,7 @@ from camvidlog2.vid import (
     Region,
     VideoFileStats,
     generate_frames_cv2,
+    generate_frames_cv2_rtsp,
     get_frame_by_no,
     get_video_stats,
     save_video,
@@ -22,6 +23,17 @@ def test_generate_frames_cv2(video_path: Path):
         assert isinstance(array, np.ndarray)
         assert array.ndim == 3
         assert array.shape == (2160, 3840, 3)  # 4k colour
+
+
+def test_generate_frames_cv2_rtsp(rtsp_server: str):
+    for frame_no, array in enumerate(generate_frames_cv2_rtsp(rtsp_server)):
+        assert isinstance(array, np.ndarray)
+        assert array.ndim == 3
+        assert array.shape == (2160, 3840, 3)  # 4k colour
+
+        if frame_no > 30:
+            # stream will loop by itself indefinately
+            break
 
 
 @pytest.mark.parametrize("frame_no", [1, 42, 140])
