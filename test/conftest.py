@@ -47,17 +47,17 @@ def fixture_video_embeddings_path(video_path: Path) -> Path:
 @pytest.fixture(name="rtsp_server", scope="session")
 def fixture_rtsp_server(video_path: Path, tmp_path_factory: pytest.TempPathFactory):
     """
-    Pytest fixture that starts an RTSP server using ffmpeg-python with a randomized port.
+    Pytest fixture that starts an RTSP server using go2rtc on an avaliable port.
 
     This fixture:
     1. Defines the input file.
     2. Chooses a random port and checks if it's free.
     3. Constructs the RTSP server address.
-    4. Constructs the ffmpeg command to stream the input file over RTSP using ffmpeg-python.
-    5. Starts the ffmpeg process in the background.
+    4. Constructs the go2rtc config file.
+    5. Starts the go2rtc process in the background.
     6. Waits for a short period to allow the server to start.
     7. Yields the RTSP server address to the test function.
-    8. After the test function completes, it stops the ffmpeg process.
+    8. After the test function completes, it stops the go2rtc process.
 
     Returns:
         str: The RTSP server address.

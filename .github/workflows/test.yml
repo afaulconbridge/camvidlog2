@@ -28,7 +28,9 @@ jobs:
 
       - name: Setup apt dependencies
         id: setup-deps-extra
-        run: sudo apt install ffmpeg
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
         # ideally want to cache this, and all its dependencies!
 
       - name: Cache go2rtc binary
