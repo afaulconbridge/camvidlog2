@@ -89,7 +89,7 @@ def fixture_rtsp_server(video_path: Path, tmp_path_factory: TempPathFactory):
 
     # Create go2rtc.yaml dynamically
     config_path = tmp_path_factory.mktemp("go2rtc") / "go2rtc.yaml"
-    with open(config_path, "w") as f:
+    with open(config_path, "w", encoding="utf-8") as f:
         f.write(f"""
 rtsp:
   listen: ":{random_port}"
