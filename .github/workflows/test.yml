@@ -22,24 +22,14 @@ jobs:
         id: setup-python
         run: uv python install
 
-      - name: Setup dependencies
+      - name: Setup python dependencies
         id: setup-deps
         run: uv sync --locked --all-extras --dev
 
-      - name: Setup extra dependencies
+      - name: Setup apt dependencies
         id: setup-deps-extra
-        run: |
-          sudo apt install ffmpeg
-          # ffmpeg can install broken
-          # https://stackoverflow.com/a/78757443/932342
-          sudo find /usr/lib -name libblas.so.3
-          # sudo ln -s /usr/lib/x86_64-linux-gnu/blas/libblas.so.3 /usr/lib/x86_64-linux-gnu/
-          # sudo ln -s /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3 /usr/lib/x86_64-linux-gnu/
-        #uses: awalsh128/cache-apt-pkgs-action@v1.4.3
-        #with:
-        #  packages: ffmpeg
-        #  version: 1.0
-
+        run: sudo apt install ffmpeg
+        # ideally want to cache this, and all its dependencies!
 
       - name: Cache go2rtc binary
         # will automatically cache at end of process
