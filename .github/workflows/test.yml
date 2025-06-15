@@ -38,7 +38,7 @@ jobs:
         id: cache-go2rtc
         uses: actions/cache@v4
         with:
-          path: ./
+          path: ./go2rtc
           key: go2rtc-v1.9.9-${{runner.os}}-${{runner.arch}}
 
       - name: Download go2rtc if not cached
