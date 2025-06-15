@@ -11,7 +11,13 @@ import numpy as np
 
 
 class FrameError(Exception):
-    """Exception raised when there's an issue related to video frames."""
+    """Exception raised when related to video frames."""
+
+    pass
+
+
+class RTSPError(Exception):
+    """Exception raised when related to RTSP streaming."""
 
     pass
 
@@ -161,20 +167,53 @@ def generate_frames_cv2(
         FrameError: If unable to seek to the requested position
     """
     video_capture = cv2.VideoCapture(str(filename), cv2.CAP_ANY)
+    try:
+        # cv2.CAP_PROP_POS_FRAMES is unreliable - see https://github.com/opencv/opencv/issues/9053
+        if start_ms is not None:
+            set_success = video_capture.set(cv2.CAP_PROP_POS_MSEC, start_ms)
+            if not set_success:
+                raise FrameError("Unable to seek video file")
 
-    # cv2.CAP_PROP_POS_FRAMES is unreliable - see https://github.com/opencv/opencv/issues/9053
-    if start_ms is not None:
-        set_success = video_capture.set(cv2.CAP_PROP_POS_MSEC, start_ms)
-        if not set_success:
-            raise FrameError("Unable to seek video file")
+        success = True
+        while success:
+            success, array = video_capture.read()
+            frame_no = int(video_capture.get(cv2.CAP_PROP_POS_FRAMES))
+            if success:
+                yield frame_no, array
+    finally:
+        video_capture.release()
 
-    success = True
-    while success:
-        success, array = video_capture.read()
-        frame_no = int(video_capture.get(cv2.CAP_PROP_POS_FRAMES))
-        if success:
-            yield frame_no, array
-    video_capture.release()
+
+def generate_frames_cv2_rtsp(
+    rtsp_url: str,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generates video frames from an RTSP stream using OpenCV.
+
+    Args:
+        rtsp_url (str): The RTSP stream URL to connect to.
+
+    Yields:
+        np.ndarray: frame as an array
+
+    Raises:
+        RTSPError: If unable to read from the RTSP stream.
+    """
+    # for networking performance
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+
+    video_capture = cv2.VideoCapture(rtsp_url, cv2.CAP_ANY)
+    try:
+        if not video_capture.isOpened():
+            raise RTSPError(f"Unable to open stream: {rtsp_url}")
+
+        success = True
+        while success:
+            success, array = video_capture.read()
+            if success:
+                yield array
+    finally:
+        video_capture.release()
 
 
 def get_frame_by_no(filename: str | Path, frame_no: int) -> np.ndarray:
