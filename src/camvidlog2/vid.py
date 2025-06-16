@@ -132,6 +132,7 @@ def get_video_stats(filename: str | Path) -> VideoFileStats:
             raise RuntimeError(msg)
         y = frame.shape[0]
         x = frame.shape[1]
+        # this doesn't work, always read as colour
         colourspace = Colourspace.greyscale if frame.shape[2] == 1 else Colourspace.RGB
 
         return VideoFileStats(
@@ -273,13 +274,13 @@ def save_video(
     Yields:
         cv2.VideoWriter: A VideoWriter object that can be used to write frames to the output video.
     """
-    fourcc = cv2.VideoWriter_fourcc(*codex)
+    fourcc = cv2.VideoWriter_fourcc(*codex)  # type: ignore
     out = cv2.VideoWriter(
         str(output_path),
         fourcc,
         stats.fps,
         (stats.x, stats.y),
-        isColor=True,
+        isColor=stats.colourspace in {Colourspace.RGB},
     )
     try:
         yield out
