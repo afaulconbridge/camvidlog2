@@ -126,3 +126,39 @@ def test_save_video(tmp_path: Path):
 
     # Clean up the test file
     output_path.unlink()
+
+
+def test_save_video_greyscale(tmp_path: Path):
+    # Create temporary output path
+    output_path = tmp_path / "test_output.mp4"
+
+    # Generate sample frames (3 frames of different colors)
+    white_frame = np.zeros((256, 256), dtype=np.uint8)
+    white_frame[:, :] = 255
+    grey_frame = np.zeros((256, 256), dtype=np.uint8)
+    grey_frame[:, :] = 128
+    black_frame = np.zeros((256, 256), dtype=np.uint8)
+
+    # Create video stats for our test frames
+    test_video_stats = VideoFileStats(
+        fps=30.0, frame_count=3, x=256, y=256, colourspace=Colourspace.greyscale
+    )
+
+    # Use save_video to write the frames
+    with save_video(output_path, test_video_stats) as writer:
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(white_frame)
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(grey_frame)
+        for _ in range(int(test_video_stats.fps)):
+            writer.write(black_frame)
+
+    # Verify the output video file
+    stats = get_video_stats(output_path)
+
+    assert stats.frame_count == 89  # rounds down
+    assert stats.colourspace == Colourspace.RGB  # currently always reads as colour
+    assert stats.fps == 30.0
+
+    # Clean up the test file
+    output_path.unlink()
