@@ -130,7 +130,7 @@ streams:
 
         yield rtsp_address
     finally:
-        # Stop the ffmpeg process always
+        # Stop the go2rtc process always
         process.terminate()
         try:
             process.wait(timeout=10)
