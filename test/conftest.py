@@ -1,10 +1,12 @@
 import os
 import os.path
+import shutil
 import socket
 import subprocess
 import time
 from pathlib import Path
 
+import docker
 import ffmpeg
 import pytest
 
@@ -137,3 +139,128 @@ streams:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait()
+
+
+def wait_for_port(host: str, port: int, timeout: float = 10.0) -> None:
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return
+        except Exception:
+            time.sleep(0.1)
+    raise RuntimeError(f"service on {host}:{port} did not start in time.")
+
+
+@pytest.fixture(scope="session", name="docker_client")
+def fixture_docker_client():
+    return docker.from_env()
+
+
+@pytest.fixture(scope="session", name="rtsp_server_docker")
+def fixture_rtsp_server_docker(
+    video_path: Path,
+    docker_client: docker.DockerClient,
+    tmp_path_factory: pytest.TempPathFactory,
+):
+    """
+    Spins up go2rtc in Docker for testing RTSP streaming, serving a test video.
+    Requires Docker to be installed and running.
+    Yields the RTSP server URL.
+    """
+
+    # Prepare config and test video in a temp directory
+    workdir = tmp_path_factory.mktemp("go2rtc_docker")
+    config_path = workdir / "go2rtc.yaml"
+    video_dest = workdir / "test.mp4"
+
+    config_path.write_text("""streams:
+  test: "ffmpeg:/input/test.mp4#loop"
+""")
+    shutil.copy(str(video_path), str(video_dest))
+
+    container = docker_client.containers.run(
+        "alexxit/go2rtc:latest",
+        name="pytest-go2rtc-rtsp",
+        remove=True,
+        detach=True,
+        ports={
+            "8554/tcp": None,  # map to a random host port
+            "1984/tcp": 1984,
+        },
+        volumes={
+            str(workdir): {"bind": "/config", "mode": "ro"},
+            str(workdir): {"bind": "/input", "mode": "ro"},
+        },
+        # command=["--config", "/config/go2rtc.yaml"],
+    )
+
+    try:
+        # Inspect to get the host port
+        container.reload()
+        port_info = container.attrs["NetworkSettings"]["Ports"]["8554/tcp"][0]
+        host = port_info["HostIp"]
+        port = int(port_info["HostPort"])
+
+        wait_for_port(host, port, timeout=10)
+
+        rtsp_url = f"rtsp://localhost:{port}/test"
+
+        # probe using ffmpeg to ensure the stream is ready
+        for _ in range(300):
+            try:
+                ffmpeg.probe(rtsp_url, timeout=10)
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            raise RuntimeError("go2rtc RTSP stream did not become ready in time.")
+
+        yield rtsp_url
+    finally:
+        container.stop(timeout=5)
+        # Fetch and print the logs
+        logs = container.logs().decode("utf-8")
+        print(logs)
+
+
+@pytest.fixture(name="mqtt_broker", scope="session")
+def fixture_mqtt_broker_docker(
+    docker_client: docker.DockerClient,
+    tmp_path_factory: pytest.TempPathFactory,
+):
+    """
+    Spins up an Eclipse Mosquitto MQTT broker in Docker for testing.
+    Requires Docker to be installed and running.
+    Yields broker connection info as a dict.
+    """
+    workdir = tmp_path_factory.mktemp("go2rtc_docker")
+    config_path = workdir / "mosquitto.conf"
+    config_path.write_text("""listener 1883 0.0.0.0
+allow_anonymous true
+""")
+
+    container = docker_client.containers.run(
+        "eclipse-mosquitto:2.0",
+        name="pytest-mosquitto-mqtt",
+        remove=True,
+        detach=True,
+        ports={"1883/tcp": None},  # map to a random host port
+        volumes={
+            str(config_path): {"bind": "/mosquitto/config/mosquitto.conf", "mode": "ro"}
+        },
+    )
+    try:
+        # Inspect to get the host port
+        container.reload()
+        port_info = container.attrs["NetworkSettings"]["Ports"]["1883/tcp"][0]
+        host = port_info["HostIp"]
+        port = int(port_info["HostPort"])
+
+        wait_for_port(host, port, timeout=10)
+        yield {"host": host, "port": port}
+    finally:
+        # Fetch and print the logs
+        logs = container.logs().decode("utf-8")
+        print(logs)
+        container.stop(timeout=3)
