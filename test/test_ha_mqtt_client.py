@@ -1,4 +1,6 @@
 from typing import Any
+import random
+import string
 
 from camvidlog2.ha_mqtt_client import MQTTClient
 
@@ -10,17 +12,24 @@ def test_basic(mqtt_broker: dict[str, Any]) -> None:
     """
     # Given: A topic, payload, and MQTT client connection
     topic = "pytest/mqtt_fixture"
-    payload = "fixture-test"
-    client = MQTTClient(
+    payloads = [
+        "".join(random.choices(string.ascii_letters + string.digits, k=8))
+        for _ in range(10)
+    ]
+    receiveds = []
+
+    with MQTTClient(
         broker=mqtt_broker["host"],
         port=mqtt_broker["port"],
     )
     
-    # When: We subscribe to a topic, publish a message, and wait for it
+    # When: We subscribe to a topic, publish messages, and read them
     with client:
         client.subscribe(topic)
-        client.publish(topic, payload)
-        received = client.wait_for_message(timeout=2)
-    
-    # Then: The received message should match what we published
-    assert received == payload
+
+        for payload in payloads:
+            client.publish(topic, payload)
+            receiveds.append(client.wait_for_message(timeout=2))
+
+    # Then: The received messages should match what we published
+    assert payloads == receiveds

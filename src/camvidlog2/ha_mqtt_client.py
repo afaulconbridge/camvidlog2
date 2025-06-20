@@ -1,3 +1,4 @@
+import queue
 import threading
 from typing import Any, Self
 
@@ -20,6 +21,7 @@ class MQTTClient:
     port: int
     client: mqtt.Client
     _connect_event: threading.Event | None = None
+    _received_queue: queue.Queue[str] | None = None
 
     def __init__(
         self,
@@ -38,14 +40,12 @@ class MQTTClient:
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
 
-        self._message_event: threading.Event = threading.Event()
-
-        self._received_message: str | None = None
         self._subscribe_topic: str | None = None
 
     def __enter__(self) -> Self:
         # Create the event before connecting
         self._connect_event = threading.Event()
+        self._received_queue = queue.Queue()
         self.client.loop_start()
         self.client.connect(self.broker, self.port, 60)
         # Wait until connected
@@ -62,6 +62,7 @@ class MQTTClient:
         self.client.loop_stop()
         self.client.disconnect()
         self._connect_event = None
+        self._received_queue = None
 
     def _on_connect(
         self,
@@ -81,8 +82,9 @@ class MQTTClient:
     ) -> None:
         """Callback when the internal client has received a message"""
         if self._subscribe_topic is None or msg.topic == self._subscribe_topic:
-            self._received_message = msg.payload.decode()
-            self._message_event.set()
+            if self._received_queue is None:
+                raise ValueError("Client not connected")
+            self._received_queue.put(msg.payload.decode())
 
     def subscribe(self, topic: str) -> None:
         if self._subscribe_topic is not None:
@@ -108,8 +110,10 @@ class MQTTClient:
         Wait (blocking) for a message to arrive on the subscribed topic.
         Returns the message payload as string, or None if timeout.
         """
-        self._message_event.clear()
-        self._received_message = None
-        if self._message_event.wait(timeout):
-            return self._received_message
-        return None
+        if self._received_queue is None:
+            raise ValueError("Client not connected")
+        try:
+            msg = self._received_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+        return msg
