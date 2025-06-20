@@ -211,7 +211,7 @@ def fixture_rtsp_server_docker(
             try:
                 ffmpeg.probe(rtsp_url, timeout=10)
                 break
-            except Exception:
+            except (ffmpeg.Error, subprocess.TimeoutExpired):
                 time.sleep(1)
         else:
             raise RuntimeError("go2rtc RTSP stream did not become ready in time.")
