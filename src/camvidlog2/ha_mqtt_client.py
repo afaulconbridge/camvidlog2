@@ -79,7 +79,7 @@ class MQTTClient:
     def _on_message(
         self, client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage
     ) -> None:
-        """Callback when the internal client has recieved a message"""
+        """Callback when the internal client has received a message"""
         if self._subscribe_topic is None or msg.topic == self._subscribe_topic:
             self._received_message = msg.payload.decode()
             self._message_event.set()
