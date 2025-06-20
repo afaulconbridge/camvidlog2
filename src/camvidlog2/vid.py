@@ -1,6 +1,7 @@
 import contextlib
 import math
 import os
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -209,6 +210,69 @@ def generate_frames_cv2_rtsp(
             success, array = video_capture.read()
             if success:
                 yield array
+    finally:
+        video_capture.release()
+
+
+def _generate_latest_frames_cv2_rtsp(
+    video_capture: cv2.VideoCapture,
+    target: np.ndarray,
+    lock: threading.Lock,
+    terminator=threading.Event,
+) -> None:
+    success = True
+    while success and not terminator.is_set():
+        with lock:
+            success, _ = video_capture.read(target)
+
+
+def generate_latest_frames_cv2_rtsp(
+    rtsp_url: str,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generator that always returns the freshest frame.
+
+    This uses a thread in the background to fetch frames from the camera, and might skip frames
+    if the consumer can't keep up.
+    """
+    # for networking performance
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+
+    video_capture = cv2.VideoCapture(rtsp_url, cv2.CAP_ANY)
+    try:
+        if not video_capture.isOpened():
+            raise RTSPError(f"Unable to open stream: {rtsp_url}")
+
+        # get 2 frames directly to allocate arrays of the right size
+        success, array1 = video_capture.read()
+        if not success:
+            return
+        yield array1
+        success, array2 = video_capture.read()
+        if not success:
+            return
+        yield array2
+
+        # use the first array as the thread target
+        # then copy to the second array for use elsewhere
+        lock = threading.Lock()
+        terminator = threading.Event()
+        frame_thread = threading.Thread(
+            target=_generate_latest_frames_cv2_rtsp,
+            args=[video_capture, array1, lock, terminator],
+            daemon=True,
+        )
+        try:
+            frame_thread.start()
+            while frame_thread.is_alive():
+                with lock:
+                    np.copyto(array2, array1)
+                yield array2
+        finally:
+            terminator.set()
+            frame_thread.join(5)
+            if frame_thread.is_alive():
+                raise RuntimeError("Frame thread did not terminate")
     finally:
         video_capture.release()
 
