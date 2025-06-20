@@ -214,16 +214,12 @@ def generate_frames_cv2_rtsp(
         video_capture.release()
 
 
-def _generate_latest_frames_cv2_rtsp(
+def _grab_frame(
     video_capture: cv2.VideoCapture,
-    target: np.ndarray,
-    lock: threading.Lock,
-    terminator=threading.Event,
+    terminator: threading.Event,
 ) -> None:
-    success = True
-    while success and not terminator.is_set():
-        with lock:
-            success, _ = video_capture.read(target)
+    while not terminator.is_set():
+        video_capture.grab()
 
 
 def generate_latest_frames_cv2_rtsp(
@@ -243,31 +239,18 @@ def generate_latest_frames_cv2_rtsp(
         if not video_capture.isOpened():
             raise RTSPError(f"Unable to open stream: {rtsp_url}")
 
-        # get 2 frames directly to allocate arrays of the right size
-        success, array1 = video_capture.read()
-        if not success:
-            return
-        yield array1
-        success, array2 = video_capture.read()
-        if not success:
-            return
-        yield array2
-
-        # use the first array as the thread target
-        # then copy to the second array for use elsewhere
-        lock = threading.Lock()
         terminator = threading.Event()
         frame_thread = threading.Thread(
-            target=_generate_latest_frames_cv2_rtsp,
-            args=[video_capture, array1, lock, terminator],
+            target=_grab_frame,
+            args=[video_capture, terminator],
             daemon=True,
         )
         try:
             frame_thread.start()
             while frame_thread.is_alive():
-                with lock:
-                    np.copyto(array2, array1)
-                yield array2
+                success, array = video_capture.retrieve()
+                if success:
+                    yield array
         finally:
             terminator.set()
             frame_thread.join(5)
