@@ -1,12 +1,13 @@
-from typing import Any
 import random
 import string
+from typing import Any
 
 from camvidlog2.ha_mqtt_client import MQTTClient
 
+
 def test_basic(mqtt_broker: dict[str, Any]) -> None:
     """Test basic MQTT publish and subscribe functionality.
-    
+
     Verifies that a message can be published to a topic and subsequently
     received through subscription to the same topic.
     """
@@ -18,11 +19,11 @@ def test_basic(mqtt_broker: dict[str, Any]) -> None:
     ]
     receiveds = []
 
-    with MQTTClient(
+    client = MQTTClient(
         broker=mqtt_broker["host"],
         port=mqtt_broker["port"],
     )
-    
+
     # When: We subscribe to a topic, publish messages, and read them
     with client:
         client.subscribe(topic)
