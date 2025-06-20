@@ -234,7 +234,7 @@ def fixture_mqtt_broker_docker(
     Requires Docker to be installed and running.
     Yields broker connection info as a dict.
     """
-    workdir = tmp_path_factory.mktemp("go2rtc_docker")
+    workdir = tmp_path_factory.mktemp("mosquitto_mqtt")
     config_path = workdir / "mosquitto.conf"
     config_path.write_text("""listener 1883 0.0.0.0
 allow_anonymous true
