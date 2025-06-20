@@ -44,10 +44,10 @@ class MQTTClient:
         self._subscribe_topic: str | None = None
 
     def __enter__(self) -> Self:
+        # Create the event before connecting
+        self._connect_event = threading.Event()
         self.client.loop_start()
         self.client.connect(self.broker, self.port, 60)
-        # Create the event that will be set via callback
-        self._connect_event = threading.Event()
         # Wait until connected
         if not self._connect_event.wait(timeout=5):
             raise TimeoutError("MQTT client could not connect to broker in time.")
