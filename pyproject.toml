@@ -39,7 +39,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv.workspace]
-members = ["camvidlog2", "tmp_grounding_sam_2"]
+members = ["camvidlog2"]
 
 [[tool.mypy.overrides]]
 module = ["open_clip.*"]
