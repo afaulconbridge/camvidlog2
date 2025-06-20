@@ -108,6 +108,8 @@ class MQTTClient:
         Wait (blocking) for a message to arrive on the subscribed topic.
         Returns the message payload as string, or None if timeout.
         """
+        self._message_event.clear()
+        self._received_message = None
         if self._message_event.wait(timeout):
             return self._received_message
         return None
