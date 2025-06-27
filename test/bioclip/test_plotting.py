@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from camvidlog2.plots import plot_distances
+from camvidlog2.bioclip.plots import plot_distances
 
 
 def test_plot_distances(tmp_path: Path):
