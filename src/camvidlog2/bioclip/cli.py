@@ -34,24 +34,20 @@ def load(
     # load existing array, if any
     existing_array = data_load(db)
     for video in videos:
-        for video in videos:
-+           video_path = Path(video)
-            if (
-                existing_array is not None
-                and (existing_array.index.get_level_values("filename") == str(video_path.absolute())).any()
-            ):
-                print("File already loaded")
-                print(video)
-                continue
-
--           video_path = Path(video)
-            if not video_path.exists():
-                print(f"Video file not found: {video}")
-                continue
-
         video_path = Path(video)
+        if (
+            existing_array is not None
+            and (
+                existing_array.index.get_level_values("filename")
+                == str(video_path.absolute())
+            ).any()
+        ):
+            print("File already loaded")
+            print(video)
+            continue
+
         if not video_path.exists():
-            print("file does not exist")
+            print("File does not exist")
             print(video)
             continue
 
