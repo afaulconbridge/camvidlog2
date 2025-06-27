@@ -140,6 +140,7 @@ def query(
                 try:
                     img_array = get_frame_by_no(filename, frame_no)
                 except FrameError:
+                    print(f"Warning: Failed to extract frame {frame_no} from {filename}")
                     continue
                 outpath = outdir / group_name / f"{rank:03d}.jpg"
                 save(outpath, img_array)
