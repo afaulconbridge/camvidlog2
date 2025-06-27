@@ -1,9 +1,11 @@
 from pathlib import Path
+
 import pytest
 
 from camvidlog2.bioclip.ai import get_video_embeddings
 from camvidlog2.bioclip.data import create
 from camvidlog2.vid import generate_frames_cv2
+
 
 @pytest.fixture(name="video_embeddings_path", scope="session")
 def fixture_video_embeddings_path(video_path: Path) -> Path:
@@ -18,4 +20,3 @@ def fixture_video_embeddings_path(video_path: Path) -> Path:
         df.to_feather(db_path)
 
     return db_path
-

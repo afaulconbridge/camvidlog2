@@ -10,6 +10,7 @@ import docker
 import ffmpeg
 import pytest
 
+
 @pytest.fixture(name="data_directory", scope="session")
 def fixture_data_directory() -> Path:
     data_path = Path(os.path.dirname(os.path.realpath(__file__))) / "data"
