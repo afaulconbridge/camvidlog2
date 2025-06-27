@@ -36,7 +36,7 @@ def load(
     for video in videos:
         if (
             existing_array is not None
-            and existing_array["filename"].str.contains(video).any()
+            and (existing_array.index.get_level_values("filename") == str(video_path.absolute())).any()
         ):
             print("File already loaded")
             print(video)
