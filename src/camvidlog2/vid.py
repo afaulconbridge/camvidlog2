@@ -2,6 +2,7 @@ import contextlib
 import math
 import os
 import threading
+import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -216,10 +217,17 @@ def generate_frames_cv2_rtsp(
 
 def _grab_frame(
     video_capture: cv2.VideoCapture,
+    lock: threading.Lock,
     terminator: threading.Event,
+    sleep: float | None,
 ) -> None:
-    while not terminator.is_set():
-        video_capture.grab()
+    success = True
+    while success and not terminator.is_set():
+        with lock:
+            success = video_capture.grab()
+        # share the lock more nicely
+        if sleep:
+            time.sleep(sleep)
 
 
 def generate_latest_frames_cv2_rtsp(
@@ -231,8 +239,6 @@ def generate_latest_frames_cv2_rtsp(
     This uses a thread in the background to fetch frames from the camera, and might skip frames
     if the consumer can't keep up.
     """
-    # for networking performance
-    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
 
     video_capture = cv2.VideoCapture(rtsp_url, cv2.CAP_ANY)
     try:
@@ -240,17 +246,21 @@ def generate_latest_frames_cv2_rtsp(
             raise RTSPError(f"Unable to open stream: {rtsp_url}")
 
         terminator = threading.Event()
+        lock = threading.Lock()
         frame_thread = threading.Thread(
             target=_grab_frame,
-            args=[video_capture, terminator],
+            args=[video_capture, lock, terminator, 0.01],
             daemon=True,
         )
         try:
             frame_thread.start()
             while frame_thread.is_alive():
-                success, array = video_capture.retrieve()
-                if success:
-                    yield array
+                with lock:
+                    success, array = video_capture.retrieve()
+                    if success:
+                        yield array
+                    else:
+                        break
         finally:
             terminator.set()
             frame_thread.join(5)
