@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from camvidlog2.ai import (
+from camvidlog2.bioclip.ai import (
     get_string_embedding,
     get_string_embeddings,
     get_video_embeddings,

@@ -15,6 +15,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "types-seaborn>=0.13.2.20250516",
     "ffmpeg-python>=0.2.0",
+    "paho-mqtt>=2.1.0",
 ]
 
 [dependency-groups]
@@ -26,6 +27,7 @@ dev = [
     "pre-commit>=4.2.0",
     "mypy>=1.15.0",
     "ruff>=0.11.7",
+    "docker>=7.1.0",
 ]
 
 
@@ -38,6 +40,11 @@ build-backend = "hatchling.build"
 
 [tool.uv.workspace]
 members = ["camvidlog2"]
+
+[tool.uv]
+# we only want the headless version so put an impossible dependency on the gui version
+# see https://github.com/astral-sh/uv/issues/14220
+override-dependencies = ["opencv-python; python_version < '0'"]
 
 [[tool.mypy.overrides]]
 module = ["open_clip.*"]

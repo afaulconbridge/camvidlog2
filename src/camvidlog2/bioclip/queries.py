@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from camvidlog2.ai import get_string_embeddings
-from camvidlog2.data import (
+from camvidlog2.bioclip.ai import get_string_embeddings
+from camvidlog2.bioclip.data import (
     EmbeddingCollection,
     FrameEmbedding,
     StringEmbedding,

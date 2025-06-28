@@ -1,6 +1,7 @@
 import contextlib
 import math
 import os
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -209,6 +210,52 @@ def generate_frames_cv2_rtsp(
             success, array = video_capture.read()
             if success:
                 yield array
+    finally:
+        video_capture.release()
+
+
+def _grab_frame(
+    video_capture: cv2.VideoCapture,
+    terminator: threading.Event,
+) -> None:
+    while not terminator.is_set():
+        video_capture.grab()
+
+
+def generate_latest_frames_cv2_rtsp(
+    rtsp_url: str,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generator that always returns the freshest frame.
+
+    This uses a thread in the background to fetch frames from the camera, and might skip frames
+    if the consumer can't keep up.
+    """
+    # for networking performance
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+
+    video_capture = cv2.VideoCapture(rtsp_url, cv2.CAP_ANY)
+    try:
+        if not video_capture.isOpened():
+            raise RTSPError(f"Unable to open stream: {rtsp_url}")
+
+        terminator = threading.Event()
+        frame_thread = threading.Thread(
+            target=_grab_frame,
+            args=[video_capture, terminator],
+            daemon=True,
+        )
+        try:
+            frame_thread.start()
+            while frame_thread.is_alive():
+                success, array = video_capture.retrieve()
+                if success:
+                    yield array
+        finally:
+            terminator.set()
+            frame_thread.join(5)
+            if frame_thread.is_alive():
+                raise RuntimeError("Frame thread did not terminate")
     finally:
         video_capture.release()
 
