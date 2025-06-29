@@ -42,7 +42,11 @@ def main(
     # Set class names for the model - this is then baked into the ONNX export
     model.set_classes(classes, model.get_text_pe(classes))
     # Export the modified model to ONNX format
-    out_str = model.export(format="onnx", name=str(onnx_path), simplify=True)
+    out_str = model.export(
+        format="onnx",
+        name=str(onnx_path),
+        simplify=True,  # uses onnxslim to optimize the model
+    )
     out_path = Path(out_str)
     # Verify that the export location matches the requested output path
     if out_path != onnx_path_obj:
