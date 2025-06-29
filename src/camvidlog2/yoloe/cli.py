@@ -46,6 +46,7 @@ def load(
                 (v for _, v in generate_frames_cv2(video)),
                 onnx_path=onnx,
                 class_names=classes,
+                providers=None,
             ),
             classes,
         )
