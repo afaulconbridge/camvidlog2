@@ -192,11 +192,14 @@ def generate_tracked_bboxes(
             "x2": np.ceil(tracked_detections.xyxy[:, 2]).astype(np.uint32),
             "y2": np.ceil(tracked_detections.xyxy[:, 3]).astype(np.uint32),
             "conf": tracked_detections.confidence,
-            "class": pd.Categorical(
-                tracked_detections.class_id,
-                categories=np.arange(len(class_names)),
-                ordered=False,
-            ).rename_categories(class_names),
+            "class": pd.Series(
+                pd.Categorical(
+                    tracked_detections.class_id,
+                    categories=np.arange(len(class_names)),
+                    ordered=False,
+                ).rename_categories(class_names),
+                dtype=pd.CategoricalDtype(class_names, ordered=False),
+            ),
             "tracker": pd.Series(
                 [
                     tid if tid is not None else pd.NA
@@ -207,5 +210,5 @@ def generate_tracked_bboxes(
                 dtype=np.uint32,
             ),
         }
-        df = pd.DataFrame(data, columns=columns)
+        df = pd.DataFrame(data)
         yield df
