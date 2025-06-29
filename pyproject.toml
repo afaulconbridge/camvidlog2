@@ -17,7 +17,7 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "paho-mqtt>=2.1.0",
     "supervision>=0.25.1",
-    "onnxruntime-gpu>=1.22.0",
+    "onnxruntime>=1.22.0",
 ]
 
 [dependency-groups]
@@ -34,7 +34,9 @@ dev = [
     "ultralytics>=8.3.160",
     "clip",
 ]
-
+nvidia = [
+    "onnxruntime-gpu>=1.22.0",
+]
 
 [project.scripts]
 camvidlog2 = "camvidlog2:main"
