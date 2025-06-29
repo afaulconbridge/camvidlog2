@@ -47,6 +47,20 @@ jobs:
           wget -O ./go2rtc https://github.com/AlexxIT/go2rtc/releases/download/v1.9.9/go2rtc_linux_amd64
           chmod +x ./go2rtc
 
+      - name: Cache yoloe-11l-seg.onnx
+        id: cache-onnx
+        uses: actions/cache@v4
+        with:
+          path: yoloe-11l-seg.onnx
+          key: yoloe-11l-seg-onnx-v1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Prepare YOLOE ONNX model if not cached
+        if: steps.cache-onnx.outputs.cache-hit != 'true'
+        run: |
+          uv run python bin/prepare-yoloe.py \
+            -c "deer" -c "bird" -c "hedgehog" -c "otter" -c "giraffe" \
+            --force
+
       - name: Run pytest
         id: pytest
         run: uv run pytest test
