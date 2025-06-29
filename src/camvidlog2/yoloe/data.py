@@ -1,12 +1,11 @@
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
-import numpy as np
 import pandas as pd
 
 
 def create(
-    video: Path, trackings: Iterable[tuple[int, np.ndarray]], names: Iterable[str]
+    video: Path, trackings: Iterable[pd.DataFrame], names: Iterable[str]
 ) -> pd.DataFrame:
     # output data frame has the following columns:
     # - filename: the path to the video file
@@ -19,7 +18,6 @@ def create(
     # Create the DataFrame with empty columns
     array = pd.DataFrame(
         {
-            "filename": pd.Series(dtype=pd.StringDtype()),
             "frame_no": pd.Series(dtype=pd.UInt32Dtype()),
             "x1": pd.Series(dtype=pd.UInt32Dtype()),
             "y1": pd.Series(dtype=pd.UInt32Dtype()),
@@ -33,6 +31,8 @@ def create(
         }
     )
 
-    # make sure all column names are strings so they roundtrip correctly
-    array.columns = [str(x) for x in array.columns]  # type: ignore
+    for tracking in trackings:
+        array = pd.concat([array, tracking])
+    array.insert(0, "filename", str(video))
+
     return array

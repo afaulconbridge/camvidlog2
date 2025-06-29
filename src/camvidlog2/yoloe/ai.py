@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Sequence
+from typing import Iterator, Sequence
 
 import cv2
 import numpy as np
@@ -119,12 +120,12 @@ def filter_bboxes(
 def generate_tracked_bboxes(
     frames: Iterable[np.ndarray],
     onnx_path: str | Path,
-    class_names: List[str],
+    class_names: list[str],
     conf: float = 0.1,
     nms_thresh: float = 0.7,
-    providers: Optional[Sequence[str]] = [
+    providers: Sequence[str] | None = [
         "CUDAExecutionProvider",
-        "OpenVINOExecutionProvider",
+        # "OpenVINOExecutionProvider",
         "CPUExecutionProvider",
     ],
 ) -> Iterator[pd.DataFrame]:
@@ -191,11 +192,11 @@ def generate_tracked_bboxes(
         # Prepare data output
         data = {
             "frame_no": [frame_no] * n,
-            "x1": np.floor(tracked_detections.xyxy[:, 0]).astype(np.uint32),
-            "y1": np.floor(tracked_detections.xyxy[:, 1]).astype(np.uint32),
-            "x2": np.ceil(tracked_detections.xyxy[:, 2]).astype(np.uint32),
-            "y2": np.ceil(tracked_detections.xyxy[:, 3]).astype(np.uint32),
-            "conf": tracked_detections.confidence,
+            "x1": pd.Series(np.floor(tracked_detections.xyxy[:, 0]), dtype=np.uint32),
+            "y1": pd.Series(np.floor(tracked_detections.xyxy[:, 1]), dtype=np.uint32),
+            "x2": pd.Series(np.ceil(tracked_detections.xyxy[:, 2]), dtype=np.uint32),
+            "y2": pd.Series(np.ceil(tracked_detections.xyxy[:, 3]), dtype=np.uint32),
+            "conf": pd.Series(tracked_detections.confidence, dtype=np.float32),
             "class": pd.Series(
                 pd.Categorical(
                     tracked_detections.class_id,

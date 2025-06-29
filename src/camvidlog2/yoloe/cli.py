@@ -7,6 +7,7 @@ import typer
 from camvidlog2.common.data import load as data_load
 from camvidlog2.vid import generate_frames_cv2
 from camvidlog2.yoloe.ai import generate_tracked_bboxes
+from camvidlog2.yoloe.data import create
 
 app = typer.Typer()
 
@@ -39,16 +40,15 @@ def load(
             continue
 
         # inference
-        array = pd.concat(
+        array = create(
+            video,
             generate_tracked_bboxes(
                 (v for _, v in generate_frames_cv2(video)),
                 onnx_path=onnx,
                 class_names=classes,
-            )
+            ),
+            classes,
         )
-
-        # add filename column to array as the first column
-        array.insert(0, "filename", str(video.absolute()))
 
         # add new data to existing array
         if existing_array is None:
