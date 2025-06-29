@@ -22,7 +22,7 @@ def test_generate_tracked_bboxes_with_real_video(video_path: Path):
             ["frame_no", "x1", "y1", "x2", "y2", "conf", "class", "tracker"]
         ).issubset(df.columns)
         # Check that 'class' column is categorical with correct categories
-        assert isinstance(df["class"], pd.CategoricalDtype)
+        assert isinstance(df["class"].dtype, pd.CategoricalDtype)
         assert set(df["class"].cat.categories) == set(
             ["deer", "bird", "hedgehog", "otter", "giraffe"]
         )
