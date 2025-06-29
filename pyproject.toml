@@ -32,6 +32,7 @@ dev = [
     "docker>=7.1.0",
     "onnxslim>=0.1.58",
     "ultralytics>=8.3.160",
+    "clip",
 ]
 
 
@@ -44,6 +45,9 @@ build-backend = "hatchling.build"
 
 [tool.uv.workspace]
 members = ["camvidlog2"]
+
+[tool.uv.sources]
+clip = { git = "https://github.com/ultralytics/CLIP.git" }
 
 [tool.uv]
 # we only want the headless version so put an impossible dependency on the gui version
