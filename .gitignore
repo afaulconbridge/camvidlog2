@@ -14,8 +14,12 @@ wheels/
 
 # models and data files
 *.pt
+*.onnx
 *.feather
 *.feather.gz
 
 # secrets
 *.env
+
+# required tools
+go2rtc
