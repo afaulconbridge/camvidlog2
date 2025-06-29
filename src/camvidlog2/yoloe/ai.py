@@ -122,7 +122,11 @@ def generate_tracked_bboxes(
     class_names: List[str],
     conf: float = 0.1,
     nms_thresh: float = 0.7,
-    providers: Optional[Sequence[str]] = None,
+    providers: Optional[Sequence[str]] = [
+        "CUDAExecutionProvider",
+        "OpenVINOExecutionProvider",
+        "CPUExecutionProvider",
+    ],
 ) -> Iterator[pd.DataFrame]:
     """
     Generator that yields tracked bounding boxes for each frame as a pandas DataFrame.
