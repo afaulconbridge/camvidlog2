@@ -59,6 +59,7 @@ jobs:
         run: |
           uv run python bin/prepare-yoloe.py \
             -c "deer" -c "bird" -c "hedgehog" -c "otter" -c "giraffe" \
+            --batch 10 \
             --force
 
       - name: Run pytest
