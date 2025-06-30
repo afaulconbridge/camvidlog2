@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
+from typing import Annotated
 
 import typer
-from typing_extensions import Annotated
 from ultralytics import YOLOE
 
 
