@@ -137,9 +137,9 @@ def generate_tracked_bboxes(
     """
     Generator that yields tracked bounding boxes for each frame as a pandas DataFrame.
 
-    Each row: [frame_no, x1, y1, x2, y2, confidence, classes, track_id]
+    Each row: [frame_no, x1, y1, x2, y2, confidence, classes, tracker]
     - The 'classes' column is a pandas Categorical type with class names as categories.
-    - Missing track_id will be represented as pd.NA (nullable integer column).
+    - Missing tracker will be represented as pd.NA (nullable integer column).
 
     Args:
         frames: iterable of np.ndarray (frames in BGR format)
@@ -150,7 +150,7 @@ def generate_tracked_bboxes(
         providers: ONNX runtime providers
 
     Yields:
-        pd.DataFrame with columns: [frame_no, x1, y1, x2, y2, conf, class, track_id]
+        pd.DataFrame with columns: [frame_no, x1, y1, x2, y2, conf, class, tracker]
         - 'class' is a pandas Categorical column with class names.
         - 'tracker' is a nullable integer column for track IDs.
     """
