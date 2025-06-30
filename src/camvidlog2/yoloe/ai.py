@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Iterator
 
 import cv2
 import numpy as np
@@ -9,6 +9,16 @@ import pandas as pd
 from supervision import ByteTrack, Detections
 
 from camvidlog2.common.nms.np import nms
+
+
+# this is a compile time object, so downstream packages can modify it
+# e.g. to support OpenVINO or CUDA and associated dependencies
+class ProvidersList:
+    providers = [
+        #    "CUDAExecutionProvider",
+        #    "OpenVINOExecutionProvider",
+        "CPUExecutionProvider",
+    ]
 
 
 def preprocess(frame: np.ndarray) -> np.ndarray:
@@ -123,11 +133,6 @@ def generate_tracked_bboxes(
     class_names: list[str],
     conf: float = 0.1,
     nms_thresh: float = 0.7,
-    providers: Sequence[str] | None = [
-        "CUDAExecutionProvider",
-        # "OpenVINOExecutionProvider",
-        "CPUExecutionProvider",
-    ],
 ) -> Iterator[pd.DataFrame]:
     """
     Generator that yields tracked bounding boxes for each frame as a pandas DataFrame.
@@ -149,7 +154,7 @@ def generate_tracked_bboxes(
         - 'class' is a pandas Categorical column with class names.
         - 'tracker' is a nullable integer column for track IDs.
     """
-    onnx_model = ort.InferenceSession(str(onnx_path), providers=providers)
+    onnx_model = ort.InferenceSession(str(onnx_path), providers=ProvidersList.providers)
 
     num_classes = len(class_names)
 

@@ -16,7 +16,7 @@ app = typer.Typer()
 def load(
     videos: list[Path],
     classes: Annotated[list[str], typer.Option("--class", "-c")],
-    onnx: Annotated[Path, typer.Option()] = Path("yoloe-11l-seg.onnx"),
+    onnx: Annotated[Path, typer.Option("--onnx", "-o")] = Path("yoloe-11l-seg.onnx"),
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
 ):
     # load existing array, if any
@@ -46,7 +46,6 @@ def load(
                 (v for _, v in generate_frames_cv2(video)),
                 onnx_path=onnx,
                 class_names=classes,
-                providers=None,
             ),
             classes,
         )
