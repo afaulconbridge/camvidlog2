@@ -34,9 +34,6 @@ dev = [
     "ultralytics>=8.3.160",
     "clip",
 ]
-nvidia = [
-    "onnxruntime-gpu>=1.22.0",
-]
 
 [project.scripts]
 camvidlog2 = "camvidlog2:main"
