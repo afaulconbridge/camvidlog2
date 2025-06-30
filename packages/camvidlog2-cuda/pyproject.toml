@@ -1,0 +1,23 @@
+[project]
+name = "camvidlog2-cuda"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = ["camvidlog2", "onnxruntime-gpu>=1.22.0"]
+
+[project.scripts]
+camvidlog2 = "camvidlog2_cuda:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# we only want the cuda version so put an impossible dependency on the cpu version
+# see https://github.com/astral-sh/uv/issues/14220
+override-dependencies = ["onnxruntime; python_version < '0'"]
+
+[tool.uv.sources]
+camvidlog2 = { path = "../../", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/camvidlog2_cuda"]
