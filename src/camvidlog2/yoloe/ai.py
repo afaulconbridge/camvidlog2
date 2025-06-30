@@ -1,3 +1,4 @@
+import itertools
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Iterator
@@ -9,14 +10,15 @@ import pandas as pd
 from supervision import ByteTrack, Detections
 
 from camvidlog2.common.nms.np import nms
+from camvidlog2.vid import slice_frame
 
 
 # this is a compile time object, so downstream packages can modify it
 # e.g. to support OpenVINO or CUDA and associated dependencies
 class ProvidersList:
     providers = [
-        #    "CUDAExecutionProvider",
-        #    "OpenVINOExecutionProvider",
+        # "CUDAExecutionProvider",
+        # "OpenVINOExecutionProvider",
         "CPUExecutionProvider",
     ]
 
@@ -29,7 +31,7 @@ def preprocess(frame: np.ndarray) -> np.ndarray:
         frame: np.ndarray of shape (H, W, 3), BGR format, dtype uint8.
 
     Returns:
-        np.ndarray: Preprocessed image of shape (1, 3, 640, 640), dtype float32, values in [0, 1].
+        np.ndarray: Preprocessed image of shape (3, 640, 640), dtype float32, values in [0, 1].
             - Channel order: [R, G, B]
             - Pixel values normalized to [0, 1]
             - Suitable for ONNX model input
@@ -37,7 +39,6 @@ def preprocess(frame: np.ndarray) -> np.ndarray:
     frm = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_LINEAR)
     frm = cv2.cvtColor(frm, cv2.COLOR_BGR2RGB)
     frm = frm.transpose(2, 0, 1)  # (3, 640, 640)
-    frm = frm.reshape(1, 3, 640, 640)
     frm = (frm / 255.0).astype(np.float32)
     return frm
 
@@ -82,18 +83,17 @@ def apply_scaling(array: np.ndarray, width: int, height: int) -> None:
 
 def filter_bboxes(
     conf: float,
-    nms_thresh: float,
     num_classes: int,
     img_h: int,
     img_w: int,
     results_all: np.ndarray,
 ) -> np.ndarray:
     """
-    Filter and process YOLOE model outputs to obtain bounding boxes after confidence thresholding and NMS.
+    Filter and process YOLOE model outputs to obtain bounding boxes after confidence thresholding.
+    (NMS is not applied here.)
 
     Args:
         conf: Confidence threshold for filtering detections.
-        nms_thresh: IoU threshold for Non-Maximum Suppression (NMS).
         num_classes: Number of classes in the model.
         img_h: Height of the original image.
         img_w: Width of the original image.
@@ -102,7 +102,7 @@ def filter_bboxes(
             - columns 4:4+num_classes: class confidence scores
 
     Returns:
-        np.ndarray: Array of filtered detections after NMS, shape (M, 6), dtype float32.
+        np.ndarray: Array of filtered detections, shape (M, 6), dtype float32.
             - columns 0:4: [x1, y1, x2, y2] (top-left and bottom-right corners, scaled to original image size)
             - column 4: confidence score
             - column 5: class_id (float, but should be int-castable)
@@ -121,10 +121,15 @@ def filter_bboxes(
     # Convert (x_center, y_center, width, height) to (x1, y1, x2, y2) in-place
     convert_xyhw_into_x1y1x2y2(results_filtered_conf)
     # Scale coordinates from 640x640 to original image size in-place
-    apply_scaling(results_filtered_conf, img_w, img_h)
-    # Apply Non-Maximum Suppression (NMS)
-    results_filtered_conf_nms = nms(results_filtered_conf, nms_thresh)
-    return results_filtered_conf_nms
+    if img_h != 640 or img_w != 640:
+        apply_scaling(results_filtered_conf, img_w, img_h)
+    # Ensure x1 and y1 are no less than zero
+    results_filtered_conf[:, 0] = np.maximum(results_filtered_conf[:, 0], 0)
+    results_filtered_conf[:, 1] = np.maximum(results_filtered_conf[:, 1], 0)
+    # Ensure x2 and y2 are no more than img_w and img_h
+    results_filtered_conf[:, 2] = np.minimum(results_filtered_conf[:, 2], img_w)
+    results_filtered_conf[:, 3] = np.minimum(results_filtered_conf[:, 3], img_h)
+    return results_filtered_conf
 
 
 def generate_tracked_bboxes(
@@ -133,6 +138,7 @@ def generate_tracked_bboxes(
     class_names: list[str],
     conf: float = 0.1,
     nms_thresh: float = 0.7,
+    max_batch_size: int = 10,
 ) -> Iterator[pd.DataFrame]:
     """
     Generator that yields tracked bounding boxes for each frame as a pandas DataFrame.
@@ -147,6 +153,7 @@ def generate_tracked_bboxes(
         class_names: list of class names
         conf: confidence threshold
         nms_thresh: NMS IoU threshold
+        max_batch_size: maximum number of chunks to process in a single ONNX inference batch (default 30)
         providers: ONNX runtime providers
 
     Yields:
@@ -154,35 +161,54 @@ def generate_tracked_bboxes(
         - 'class' is a pandas Categorical column with class names.
         - 'tracker' is a nullable integer column for track IDs.
     """
-    onnx_model = ort.InferenceSession(str(onnx_path), providers=ProvidersList.providers)
+    onnx_model = ort.InferenceSession(
+        str(onnx_path),
+        providers=ProvidersList.providers,
+        #    sess_options=session_options,
+    )
+    onnx_model.disable_fallback()
 
     num_classes = len(class_names)
-
     tracker = ByteTrack()
-    columns = ["frame_no", "x1", "y1", "x2", "y2", "conf", "class", "tracker"]
     for frame_no, frame in enumerate(frames):
-        img_h, img_w = frame.shape[:2]
+        all_detections = []
 
-        # Preprocess the frame
-        frame_prepared = preprocess(frame)
+        # beware, batch size is baked into the model too
+        for batch in itertools.batched(
+            slice_frame(frame, slice_width=640, slice_height=640, slice_overlap=0.25),
+            max_batch_size,
+        ):
+            regions, slices = zip(*batch)
+            # Run inference on the batch
+            slices = [preprocess(slice) for slice in slices]
+            # model _must_ have a specific batch size, no smaller, no larger
+            while len(slices) < max_batch_size:
+                slices.append(np.zeros((3, 640, 640), dtype=np.float32))
+            outputs = onnx_model.run(
+                None,
+                input_feed={"images": np.stack(slices, axis=0)},
+            )
 
-        # Run inference
-        outputs = onnx_model.run(None, {"images": frame_prepared})
+            # For each chunk in the batch, post-process detections
+            for i, region in enumerate(regions):
+                results_all = outputs[0][i].transpose().squeeze()
+                # Filter and scale detections for this chunk (no NMS yet)
+                chunk_detections = filter_bboxes(
+                    conf, num_classes, 640, 640, results_all
+                )
+                # Offset chunk detections to original frame coordinates
+                chunk_detections[:, 0] += region.x1  # x1
+                chunk_detections[:, 2] += region.x1  # x2
+                chunk_detections[:, 1] += region.y1  # y1
+                chunk_detections[:, 3] += region.y1  # y2
+                all_detections.append(chunk_detections)
+        # Combine all detections from all chunks
+        all_detections = np.vstack(all_detections)
 
-        # post-process the results
-        results_raw = outputs[0]
-        results_all = results_raw.transpose().squeeze()
-        if len(results_all) == 0:
-            yield pd.DataFrame(columns=columns)
-            continue
-        results_filtered = filter_bboxes(
-            conf, nms_thresh, num_classes, img_h, img_w, results_all
-        )
-        if len(results_filtered) == 0:
-            yield pd.DataFrame(columns=columns)
-            continue
+        # Run NMS on the combined detections (in full-frame coordinates)
+        results_filtered = nms(all_detections, nms_thresh)
 
-        # Do tracking
+        # Do tracking on the filtered detections
         detections = Detections(
             xyxy=results_filtered[:, :4],
             confidence=results_filtered[:, 4],
@@ -190,11 +216,7 @@ def generate_tracked_bboxes(
         )
         tracked_detections = tracker.update_with_detections(detections)
         n = len(tracked_detections)
-        if n == 0:
-            yield pd.DataFrame(columns=columns)
-            continue
-
-        # Prepare data output
+        # Prepare output DataFrame for this frame
         data = {
             "frame_no": [frame_no] * n,
             "x1": pd.Series(np.floor(tracked_detections.xyxy[:, 0]), dtype=np.uint32),
@@ -211,12 +233,9 @@ def generate_tracked_bboxes(
                 dtype=pd.CategoricalDtype(class_names, ordered=False),
             ),
             "tracker": pd.Series(
-                [
-                    tid if tid is not None else pd.NA
-                    for tid in tracked_detections.tracker_id
-                ]
+                [tid if tid is not None else 0 for tid in tracked_detections.tracker_id]
                 if tracked_detections.tracker_id is not None
-                else [pd.NA] * n,
+                else [0] * n,
                 dtype=np.uint32,
             ),
         }

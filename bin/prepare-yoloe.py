@@ -29,6 +29,12 @@ def main(
         "-f",
         help="Overwrite output ONNX file if it exists",
     ),
+    batch: int = typer.Option(
+        10,
+        "--batch",
+        "-b",
+        help="Batch size for ONNX export",
+    ),
 ):
     onnx_path_obj = Path(onnx_path)
     # Check if output file exists and handle according to --force flag
@@ -46,6 +52,7 @@ def main(
         format="onnx",
         name=str(onnx_path),
         simplify=True,  # uses onnxslim to optimize the model
+        batch=batch,
     )
     out_path = Path(out_str)
     # Verify that the export location matches the requested output path
