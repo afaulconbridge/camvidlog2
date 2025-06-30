@@ -23,12 +23,10 @@ def load(
     existing_array = data_load(db)
 
     for video in videos:
+        video = video.resolve()
         if (
             existing_array is not None
-            and (
-                existing_array.index.get_level_values("filename")
-                == str(video.absolute())
-            ).any()
+            and (existing_array.index.get_level_values("filename") == str(video)).any()
         ):
             print("File already loaded")
             print(video)

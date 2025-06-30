@@ -34,12 +34,11 @@ def load(
     # load existing array, if any
     existing_array = data_load(db)
     for video in videos:
-        video_path = Path(video)
+        video_path = Path(video).resolve()
         if (
             existing_array is not None
             and (
-                existing_array.index.get_level_values("filename")
-                == str(video_path.absolute())
+                existing_array.index.get_level_values("filename") == str(video_path)
             ).any()
         ):
             print("File already loaded")
@@ -96,7 +95,7 @@ def query(
 
     if outdir:
         # ensure the target location exists
-        outdir = outdir.absolute().resolve()
+        outdir = outdir.resolve()
         os.makedirs(outdir, exist_ok=True)
         # record what search was run
         with open(outdir / "query.json", "w") as json_out:
