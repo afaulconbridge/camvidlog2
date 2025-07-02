@@ -461,7 +461,7 @@ def slice_frame_scaling(
     if slice_width > frame_width:
         raise ValueError("slice width must be no wider than frame")
     if slice_height > frame_height:
-        raise ValueError("slice width must be no higher than frame")
+        raise ValueError("slice height must be no higher than frame")
 
     # 1. Determine the maximum scaling factor that fits within the frame
     max_scale_w = frame_width / slice_width
