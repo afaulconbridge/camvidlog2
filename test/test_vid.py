@@ -14,6 +14,7 @@ from camvidlog2.vid import (
     get_video_stats,
     save_video,
     slice_frame,
+    slice_frame_scaling,
 )
 
 
@@ -100,10 +101,32 @@ def test_slice_frame():
         assert isinstance(subframe, np.ndarray)
         assert subframe.shape == (slice_size, slice_size, 3)
         assert region.x1 >= 0 and region.y1 >= 0
+        assert region.x2 <= 1000 and region.y1 <= 800
         assert region.x2 - region.x1 == slice_size
         assert region.y2 - region.y1 == slice_size
 
     assert i == 9
+
+
+def test_slice_frame_scaling():
+    frame = np.zeros((800, 1000, 3), dtype=np.uint8)
+    slice_size = 400
+    slices = slice_frame_scaling(frame, slice_size, slice_size, 0.25, 2.0)
+
+    # 9 of 400x400 slices
+    # 4 of 632x632 slices
+    # 2 of 800x800 slice
+    for i, (region, subframe) in enumerate(slices, 1):
+        print(f"{i} Region: {region}, Subframe shape: {subframe.shape}")
+        assert isinstance(region, Region)
+        assert isinstance(subframe, np.ndarray)
+        assert region.x1 >= 0 and region.y1 >= 0
+        assert region.x2 <= 1000 and region.y1 <= 800
+        # original slice is square, so all regions should be square
+        assert region.x2 - region.x1 == region.y2 - region.y1
+
+    assert i == 15
+    1 / 0
 
 
 def test_save_video(tmp_path: Path):

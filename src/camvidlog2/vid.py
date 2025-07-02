@@ -366,9 +366,9 @@ def slice_frame(
         ValueError: If invalid dimensions or overlap values are provided
     """
     if slice_width < 1:
-        raise ValueError("slcie width must be at least 1")
+        raise ValueError("slice width must be at least 1")
     if slice_height < 1:
-        raise ValueError("slcie height must be at least 1")
+        raise ValueError("slice height must be at least 1")
     if slice_overlap < 0.0:
         raise ValueError("slice overlap must not be negative")
     if slice_overlap >= 1.0:
@@ -388,11 +388,26 @@ def slice_frame(
         (frame_width - slice_width_overlap) / slice_width_non_overlap
     )
 
-    # recalculate the overlaps to use based on the number of slices
-    extra_width = (num_slices_width * slice_width) - frame_width
-    extra_height = (num_slices_height * slice_height) - frame_height
-    slice_width_overlap_updated = extra_width / (num_slices_width - 1)
-    slice_height_overlap_updated = extra_height / (num_slices_height - 1)
+    if num_slices_height == 1 and num_slices_width == 1:
+        # one slice covers the whole frame
+        slice_height_overlap_updated = slice_height_overlap
+        slice_width_overlap_updated = slice_width_overlap
+    elif num_slices_height == 1:
+        # horizontal slices only
+        extra_width = (num_slices_width * slice_width) - frame_width
+        slice_width_overlap_updated = extra_width / (num_slices_width - 1)
+        slice_height_overlap_updated = slice_height_overlap
+    elif num_slices_width == 1:
+        # vertical slices only
+        extra_height = (num_slices_height * slice_height) - frame_height
+        slice_width_overlap_updated = slice_width_overlap
+        slice_height_overlap_updated = extra_height / (num_slices_height - 1)
+    else:
+        # recalculate the overlaps to use based on the number of slices
+        extra_width = (num_slices_width * slice_width) - frame_width
+        extra_height = (num_slices_height * slice_height) - frame_height
+        slice_width_overlap_updated = extra_width / (num_slices_width - 1)
+        slice_height_overlap_updated = extra_height / (num_slices_height - 1)
     assert slice_height_overlap_updated >= slice_height_overlap
     assert slice_width_overlap_updated >= slice_width_overlap
 
@@ -410,3 +425,76 @@ def slice_frame(
             frame_slice = frame[y1:y2, x1:x2]
             region = Region(x1, y1, x2, y2)
             yield region, frame_slice
+
+
+def slice_frame_scaling(
+    frame: np.ndarray,
+    slice_width: int,
+    slice_height: int,
+    slice_overlap=0.25,
+    slice_scaling_max=2.0,
+) -> Generator[tuple[Region, np.ndarray], None, None]:
+    """Slices a frame into smaller overlapping regions with scaling.
+
+    Args:
+        frame (np.ndarray): The input frame to be sliced
+        slice_width (int): Minimum width of each slice in pixels
+        slice_height (int): Minimum height of each slice in pixels
+        slice_overlap (float): Proportion of overlap between slices. Defaults to 0.25
+        slice_scaling_max (float): Maximum scaling factor for slice size. Defaults to 2.0
+
+    Yields:
+        tuple[Region, np.ndarray]: A tuple containing (region, subframe)
+    """
+    if slice_width < 1:
+        raise ValueError("slice width must be at least 1")
+    if slice_height < 1:
+        raise ValueError("slice height must be at least 1")
+    if slice_overlap < 0.0:
+        raise ValueError("slice overlap must not be negative")
+    if slice_overlap >= 1.0:
+        raise ValueError("slice overlap must not be greater or equal to 1.0")
+
+    # get the dimensions of the input image
+    frame_height, frame_width = frame.shape[:2]
+
+    if slice_width > frame_width:
+        raise ValueError("slice width must be no wider than frame")
+    if slice_height > frame_height:
+        raise ValueError("slice width must be no higher than frame")
+
+    # 1. Determine the maximum scaling factor that fits within the frame
+    max_scale_w = frame_width / slice_width
+    max_scale_h = frame_height / slice_height
+    max_scale = max(max_scale_w, max_scale_h)
+
+    # 2. Calculate the number of scales (steps) to use
+    scales = [1.0]
+    while ith_scale := slice_scaling_max ** len(scales) < max_scale:
+        scales.append(ith_scale)
+
+    # 3. Calculate the scaling factor to use (nth root)
+    slice_scaling_updated = max_scale ** (1.0 / len(scales))
+
+    for i in range(len(scales)):
+        slice_scaling_factor = slice_scaling_updated**i
+        slice_width = int(slice_width * slice_scaling_factor)
+        slice_height = int(slice_height * slice_scaling_factor)
+
+        yield from slice_frame(frame, slice_width, slice_height, slice_overlap)
+
+    # also yield the original frame, sliced to keep aspect ratio constant
+    if slice_width / frame_width < slice_height / frame_height:
+        yield from slice_frame(
+            frame,
+            int(slice_width * (frame_height / slice_height)),
+            frame_height,
+            slice_overlap,
+        )
+    else:
+        yield from slice_frame(
+            frame,
+            frame_width,
+            int(slice_height * (frame_width / slice_width)),
+            slice_overlap,
+        )
