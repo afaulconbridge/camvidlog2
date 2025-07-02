@@ -160,7 +160,7 @@ def generate_tracked_bboxes(
         nms_thresh: NMS IoU threshold
         max_batch_size: maximum number of chunks to process in a single ONNX inference batch (default 30)
         slice_overlap: overlap ratio for frame slicing (default 0.25)
-        slice_scaling: scaling ratio for frame slicing (default 2.0)
+        slice_scaling: scaling ratio for frame slicing (default 4.0)
         providers: ONNX runtime providers
 
     Yields:
