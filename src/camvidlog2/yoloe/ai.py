@@ -1,4 +1,5 @@
 import itertools
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Iterator
@@ -13,14 +14,15 @@ from camvidlog2.common.nms.np import nms
 from camvidlog2.vid import slice_frame
 
 
-# this is a compile time object, so downstream packages can modify it
-# e.g. to support OpenVINO or CUDA and associated dependencies
-class ProvidersList:
-    providers = [
-        # "CUDAExecutionProvider",
-        # "OpenVINOExecutionProvider",
-        "CPUExecutionProvider",
-    ]
+def get_providers_list() -> list[str]:
+    """
+    Returns a list of ONNX providers from the CVL2_ONNX_PROVIDERS environment variable,
+    or ["CPUExecutionProvider"] if not set.
+    """
+    env_val = os.environ.get("CVL2_ONNX_PROVIDERS")
+    if env_val:
+        return [p.strip() for p in env_val.split(",") if p.strip()]
+    return ["CPUExecutionProvider"]
 
 
 def preprocess(frame: np.ndarray) -> np.ndarray:
@@ -164,12 +166,14 @@ def generate_tracked_bboxes(
         - 'class' is a pandas Categorical column with class names.
         - 'tracker' is a nullable integer column for track IDs.
     """
+    providers = get_providers_list()
     onnx_model = ort.InferenceSession(
         str(onnx_path),
-        providers=ProvidersList.providers,
-        #    sess_options=session_options,
+        providers=providers,
     )
-    onnx_model.disable_fallback()
+    if providers == ["CUDAExecutionProvider"]:
+        # if we are only using CUDA, disable fallback to CPU
+        onnx_model.disable_fallback()
 
     num_classes = len(class_names)
     tracker = ByteTrack()

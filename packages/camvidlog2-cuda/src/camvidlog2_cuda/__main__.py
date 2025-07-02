@@ -1,8 +1,9 @@
+import os
+
 from camvidlog2.cli import app
-from camvidlog2.yoloe.ai import ProvidersList
 
 if __name__ == "__main__":
-    # modify the providers list object in place
-    ProvidersList.providers.clear()
-    ProvidersList.providers.append("CUDAExecutionProvider")
+    env_val = os.environ.get("CVL2_ONNX_PROVIDERS")
+    if not env_val:
+        os.environ["CVL2_ONNX_PROVIDERS"] = "CUDAExecutionProvider"
     app()
