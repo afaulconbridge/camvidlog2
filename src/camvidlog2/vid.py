@@ -477,10 +477,12 @@ def slice_frame_scaling(
 
     for i in range(len(scales)):
         slice_scaling_factor = slice_scaling_updated**i
-        slice_width = int(slice_width * slice_scaling_factor)
-        slice_height = int(slice_height * slice_scaling_factor)
+        scaled_slice_width = int(slice_width * slice_scaling_factor)
+        scaled_slice_height = int(slice_height * slice_scaling_factor)
 
-        yield from slice_frame(frame, slice_width, slice_height, slice_overlap)
+        yield from slice_frame(
+            frame, scaled_slice_width, scaled_slice_height, slice_overlap
+        )
 
     # also yield the original frame, sliced to keep aspect ratio constant
     if slice_width / frame_width < slice_height / frame_height:
