@@ -470,9 +470,8 @@ def slice_frame_scaling(
 
     # 2. Calculate the number of scales (steps) to use
     scales = [1.0]
-    while ith_scale := slice_scaling_max ** len(scales) < max_scale:
+    while (ith_scale := slice_scaling_max ** len(scales)) < max_scale:
         scales.append(ith_scale)
-
     # 3. Calculate the scaling factor to use (nth root)
     slice_scaling_updated = max_scale ** (1.0 / len(scales))
 
