@@ -188,9 +188,9 @@ def generate_tracked_bboxes(
                 slice_width=640,
                 slice_height=640,
                 slice_overlap=slice_overlap,
-                strict=True,
             ),
             max_batch_size,
+            strict=True,
         ):
             regions, slices = zip(*batch, strict=True)
             slices = [preprocess(slice) for slice in slices]
