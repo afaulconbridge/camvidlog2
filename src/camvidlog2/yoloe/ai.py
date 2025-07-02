@@ -11,7 +11,7 @@ import pandas as pd
 from supervision import ByteTrack, Detections, DetectionsSmoother
 
 from camvidlog2.common.nms.np import nms
-from camvidlog2.vid import slice_frame
+from camvidlog2.vid import slice_frame_scaling
 
 
 def get_providers_list() -> list[str]:
@@ -142,6 +142,7 @@ def generate_tracked_bboxes(
     conf: float = 0.1,
     nms_thresh: float = 0.7,
     slice_overlap: float = 0.25,
+    slice_scaling: float = 4.0,
     max_batch_size: int = 10,
 ) -> Iterator[pd.DataFrame]:
     """
@@ -159,6 +160,7 @@ def generate_tracked_bboxes(
         nms_thresh: NMS IoU threshold
         max_batch_size: maximum number of chunks to process in a single ONNX inference batch (default 30)
         slice_overlap: overlap ratio for frame slicing (default 0.25)
+        slice_scaling: scaling ratio for frame slicing (default 2.0)
         providers: ONNX runtime providers
 
     Yields:
@@ -183,11 +185,12 @@ def generate_tracked_bboxes(
 
         # beware, batch size is baked into the model too
         for batch in itertools.batched(
-            slice_frame(
+            slice_frame_scaling(
                 frame,
                 slice_width=640,
                 slice_height=640,
                 slice_overlap=slice_overlap,
+                slice_scaling_max=slice_scaling,
             ),
             max_batch_size,
             strict=True,
