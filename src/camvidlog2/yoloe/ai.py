@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 import pandas as pd
-from supervision import ByteTrack, Detections
+from supervision import ByteTrack, Detections, DetectionsSmoother
 
 from camvidlog2.common.nms.np import nms
 from camvidlog2.vid import slice_frame
@@ -136,8 +136,10 @@ def generate_tracked_bboxes(
     frames: Iterable[np.ndarray],
     onnx_path: str | Path,
     class_names: list[str],
+    *,
     conf: float = 0.1,
     nms_thresh: float = 0.7,
+    slice_overlap: float = 0.25,
     max_batch_size: int = 10,
 ) -> Iterator[pd.DataFrame]:
     """
@@ -154,6 +156,7 @@ def generate_tracked_bboxes(
         conf: confidence threshold
         nms_thresh: NMS IoU threshold
         max_batch_size: maximum number of chunks to process in a single ONNX inference batch (default 30)
+        slice_overlap: overlap ratio for frame slicing (default 0.25)
         providers: ONNX runtime providers
 
     Yields:
@@ -170,20 +173,30 @@ def generate_tracked_bboxes(
 
     num_classes = len(class_names)
     tracker = ByteTrack()
+    smoother = DetectionsSmoother()
     for frame_no, frame in enumerate(frames):
         all_detections = []
 
         # beware, batch size is baked into the model too
         for batch in itertools.batched(
-            slice_frame(frame, slice_width=640, slice_height=640, slice_overlap=0.25),
+            slice_frame(
+                frame,
+                slice_width=640,
+                slice_height=640,
+                slice_overlap=slice_overlap,
+                strict=True,
+            ),
             max_batch_size,
         ):
-            regions, slices = zip(*batch)
-            # Run inference on the batch
+            regions, slices = zip(*batch, strict=True)
             slices = [preprocess(slice) for slice in slices]
             # model _must_ have a specific batch size, no smaller, no larger
-            while len(slices) < max_batch_size:
-                slices.append(np.zeros((3, 640, 640), dtype=np.float32))
+            if len(slices) < max_batch_size:
+                # Only create padding tensor if we need it, and reuse it
+                padding_tensor = np.zeros((3, 640, 640), dtype=np.float32)
+                while len(slices) < max_batch_size:
+                    slices.append(padding_tensor)
+            # Run inference on the batch
             outputs = onnx_model.run(
                 None,
                 input_feed={"images": np.stack(slices, axis=0)},
@@ -214,27 +227,28 @@ def generate_tracked_bboxes(
             confidence=results_filtered[:, 4],
             class_id=results_filtered[:, 5].astype(int),
         )
-        tracked_detections = tracker.update_with_detections(detections)
-        n = len(tracked_detections)
+        detections = tracker.update_with_detections(detections)
+        detections = smoother.update_with_detections(detections)
         # Prepare output DataFrame for this frame
+        n = len(detections)
         data = {
             "frame_no": [frame_no] * n,
-            "x1": pd.Series(np.floor(tracked_detections.xyxy[:, 0]), dtype=np.uint32),
-            "y1": pd.Series(np.floor(tracked_detections.xyxy[:, 1]), dtype=np.uint32),
-            "x2": pd.Series(np.ceil(tracked_detections.xyxy[:, 2]), dtype=np.uint32),
-            "y2": pd.Series(np.ceil(tracked_detections.xyxy[:, 3]), dtype=np.uint32),
-            "conf": pd.Series(tracked_detections.confidence, dtype=np.float32),
+            "x1": pd.Series(np.floor(detections.xyxy[:, 0]), dtype=np.uint32),
+            "y1": pd.Series(np.floor(detections.xyxy[:, 1]), dtype=np.uint32),
+            "x2": pd.Series(np.ceil(detections.xyxy[:, 2]), dtype=np.uint32),
+            "y2": pd.Series(np.ceil(detections.xyxy[:, 3]), dtype=np.uint32),
+            "conf": pd.Series(detections.confidence, dtype=np.float32),
             "class": pd.Series(
                 pd.Categorical(
-                    tracked_detections.class_id,
+                    detections.class_id,
                     categories=np.arange(len(class_names)),
                     ordered=False,
                 ).rename_categories(class_names),
                 dtype=pd.CategoricalDtype(class_names, ordered=False),
             ),
             "tracker": pd.Series(
-                [tid if tid is not None else 0 for tid in tracked_detections.tracker_id]
-                if tracked_detections.tracker_id is not None
+                [tid if tid is not None else 0 for tid in detections.tracker_id]
+                if detections.tracker_id is not None
                 else [0] * n,
                 dtype=np.uint32,
             ),
