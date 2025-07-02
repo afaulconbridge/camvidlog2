@@ -126,7 +126,6 @@ def test_slice_frame_scaling():
         assert region.x2 - region.x1 == region.y2 - region.y1
 
     assert i == 15
-    1 / 0
 
 
 def test_save_video(tmp_path: Path):
