@@ -193,7 +193,7 @@ def generate_tracked_bboxes(
                 slice_scaling_max=slice_scaling,
             ),
             max_batch_size,
-            strict=True,
+            strict=False,  # will pad the last batch later if needed
         ):
             regions, slices = zip(*batch, strict=True)
             slices = [preprocess(slice) for slice in slices]
