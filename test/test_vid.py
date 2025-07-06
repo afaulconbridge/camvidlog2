@@ -111,7 +111,9 @@ def test_slice_frame():
 def test_slice_frame_scaling():
     frame = np.zeros((800, 1000, 3), dtype=np.uint8)
     slice_size = 400
-    slices = slice_frame_scaling(frame, slice_size, slice_size, 0.25, 2.0)
+    slices = slice_frame_scaling(
+        frame, slice_size, slice_size, 0.25, 2.0, full_frame=False
+    )
 
     # 9 of 400x400 slices
     # 4 of 632x632 slices

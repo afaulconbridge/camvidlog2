@@ -433,6 +433,7 @@ def slice_frame_scaling(
     slice_height: int,
     slice_overlap=0.25,
     slice_scaling_max=2.0,
+    full_frame=True,
 ) -> Generator[tuple[Region, np.ndarray], None, None]:
     """Slices a frame into smaller overlapping regions with scaling.
 
@@ -442,6 +443,7 @@ def slice_frame_scaling(
         slice_height (int): Minimum height of each slice in pixels
         slice_overlap (float): Proportion of overlap between slices. Defaults to 0.25
         slice_scaling_max (float): Maximum scaling factor for slice size. Defaults to 2.0
+        full_frame (bool): If True, also yield the original frame as a slice. Defaults to True
 
     Yields:
         tuple[Region, np.ndarray]: A tuple containing (region, subframe)
@@ -499,3 +501,8 @@ def slice_frame_scaling(
             int(slice_height * (frame_width / slice_width)),
             slice_overlap,
         )
+
+    if full_frame:
+        # yield the full frame as a slice
+        # might not match the aspect ratio
+        yield Region(0, 0, frame_width, frame_height), frame
