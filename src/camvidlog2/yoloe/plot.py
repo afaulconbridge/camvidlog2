@@ -29,22 +29,20 @@ def overlay_detections(
             tracker_id=detections_frame["tracker"].astype(int).to_numpy(),
         )
 
-        # Prepare labels for annotation
+        scene = frame.copy()
+
+        scene = box_annotator.annotate(scene=scene, detections=detections_sv)
+
         labels = [
             f"{detections_frame.iloc[:, 5].cat.categories[cls]} {conf:.2f}"
             for cls, conf in zip(
                 detections_sv.class_id, detections_sv.confidence, strict=True
             )
         ]
-        # create a copy of the frame to annotate
-        scene = frame.copy()
-        # Annotate boxes
-        scene = box_annotator.annotate(scene=scene, detections=detections_sv)
-        # Annotate labels if available
-        if labels is not None:
-            scene = label_annotator.annotate(
-                scene=scene, detections=detections_sv, labels=labels
-            )
-        # Annotate traces if tracker IDs are available
+        scene = label_annotator.annotate(
+            scene=scene, detections=detections_sv, labels=labels
+        )
+
         scene = trace_annotator.annotate(scene=scene, detections=detections_sv)
+
         yield scene
