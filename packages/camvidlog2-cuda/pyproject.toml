@@ -5,7 +5,7 @@ requires-python = ">=3.13"
 dependencies = ["camvidlog2", "onnxruntime-gpu>=1.22.0"]
 
 [project.scripts]
-camvidlog2 = "camvidlog2_cuda:main"
+camvidlog2-cuda = "camvidlog2_cuda:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -21,3 +21,8 @@ camvidlog2 = { path = "../../", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/camvidlog2_cuda"]
+
+[dependency-groups]
+dev = [
+    "scalene>=1.5.51",
+]
