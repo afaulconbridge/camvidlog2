@@ -6,7 +6,8 @@ import supervision as sv
 
 
 def overlay_detections(
-    frames: Iterator[np.ndarray], detections: pd.DataFrame
+    frames: Iterator[np.ndarray],
+    detections: pd.DataFrame,
 ) -> Generator[np.ndarray, None, None]:
     """Overlay bounding boxes on frames."""
 
@@ -34,7 +35,7 @@ def overlay_detections(
         scene = box_annotator.annotate(scene=scene, detections=detections_sv)
 
         labels = [
-            f"{detections_frame.iloc[:, 5].cat.categories[cls]} {conf:.2f}"
+            f"{detections_frame['class'].cat.categories[cls]} {conf:.2f}"
             for cls, conf in zip(
                 detections_sv.class_id, detections_sv.confidence, strict=True
             )
