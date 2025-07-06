@@ -21,9 +21,6 @@ def overlay_detections(
             yield frame
             continue
         detections_frame = detections.xs(i, level="frame_no")
-        if detections_frame.empty:
-            yield frame
-            continue
 
         detections_sv = sv.Detections(
             xyxy=detections_frame.iloc[:, :4].to_numpy(),
