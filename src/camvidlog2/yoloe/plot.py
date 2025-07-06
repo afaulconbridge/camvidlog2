@@ -23,10 +23,10 @@ def overlay_detections(
         detections_frame = detections.xs(i, level="frame_no")
 
         detections_sv = sv.Detections(
-            xyxy=detections_frame.iloc[:, :4].to_numpy(),
-            confidence=detections_frame.iloc[:, 4].to_numpy(),
-            class_id=detections_frame.iloc[:, 5].cat.codes.astype(int).to_numpy(),
-            tracker_id=detections_frame.iloc[:, 6].astype(int).to_numpy(),
+            xyxy=detections_frame[["x1", "y1", "x2", "y2"]].to_numpy(),
+            confidence=detections_frame["conf"].to_numpy(),
+            class_id=detections_frame["class"].cat.codes.astype(int).to_numpy(),
+            tracker_id=detections_frame["tracker"].astype(int).to_numpy(),
         )
 
         # Prepare labels for annotation
