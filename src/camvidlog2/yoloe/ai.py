@@ -191,6 +191,7 @@ def generate_tracked_bboxes(
                 slice_height=640,
                 slice_overlap=slice_overlap,
                 slice_scaling_max=slice_scaling,
+                full_frame=True,  # include full frame as a slice
             ),
             max_batch_size,
             strict=False,  # will pad the last batch later if needed
