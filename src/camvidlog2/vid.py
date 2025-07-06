@@ -431,9 +431,10 @@ def slice_frame_scaling(
     frame: np.ndarray,
     slice_width: int,
     slice_height: int,
-    slice_overlap=0.25,
-    slice_scaling_max=2.0,
-    full_frame=True,
+    *,
+    slice_overlap: float = 0.25,
+    slice_scaling_max: float = 2.0,
+    full_frame: bool = True,
 ) -> Generator[tuple[Region, np.ndarray], None, None]:
     """Slices a frame into smaller overlapping regions with scaling.
 
