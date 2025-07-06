@@ -32,7 +32,9 @@ def overlay_detections(
         # Prepare labels for annotation
         labels = [
             f"{detections_frame.iloc[:, 5].cat.categories[cls]} {conf:.2f}"
-            for cls, conf in zip(detections_sv.class_id, detections_sv.confidence)
+            for cls, conf in zip(
+                detections_sv.class_id, detections_sv.confidence, strict=True
+            )
         ]
         # create a copy of the frame to annotate
         scene = frame.copy()
