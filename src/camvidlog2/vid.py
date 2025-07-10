@@ -60,6 +60,26 @@ class Region:
         if not (self.x2 > self.x1 and self.y2 > self.y1):
             raise ValueError("Invalid region dimensions. Ensure x2 > x1 and y2 > y1.")
 
+    @property
+    def width(self) -> int:
+        """Returns the width of the region."""
+        return self.x2 - self.x1
+
+    @property
+    def height(self) -> int:
+        """Returns the height of the region."""
+        return self.y2 - self.y1
+
+    @property
+    def x(self) -> int:
+        """Returns the x-coordinate of the center."""
+        return self.x1 + (self.width // 2)
+
+    @property
+    def y(self) -> int:
+        """Returns the y-coordinate of the center."""
+        return self.y1 + (self.height // 2)
+
 
 @dataclass(frozen=True)
 class VideoFileStats:
