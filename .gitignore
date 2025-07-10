@@ -12,9 +12,12 @@ wheels/
 # Virtual environments
 .venv
 
-# models and data files
+# models
 *.pt
+*.ts
 *.onnx
+
+# data files
 *.feather
 *.feather.gz
 
