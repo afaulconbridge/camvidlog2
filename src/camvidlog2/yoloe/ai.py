@@ -1,8 +1,8 @@
 import itertools
 import os
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TypeVar
 
 import cv2
 import numpy as np
@@ -10,8 +10,8 @@ import onnxruntime as ort
 import pandas as pd
 from supervision import ByteTrack, Detections, DetectionsSmoother
 
-from camvidlog2.common.nms.np import nms
-from camvidlog2.vid import slice_frame_scaling
+from camvidlog2.common.nms.np import weighted_nms
+from camvidlog2.vid import Region, slice_frame_scaling
 
 
 def get_providers_list() -> list[str]:
@@ -38,8 +38,9 @@ def preprocess(frame: np.ndarray) -> np.ndarray:
             - Pixel values normalized to [0, 1]
             - Suitable for ONNX model input
     """
-    frm = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_LINEAR)
-    frm = cv2.cvtColor(frm, cv2.COLOR_BGR2RGB)
+    frm = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    if frm.shape[0] != 640 or frm.shape[1] != 640:
+        frm = cv2.resize(frm, (640, 640), interpolation=cv2.INTER_LINEAR)
     frm = frm.transpose(2, 0, 1)  # (3, 640, 640)
     frm = (frm / 255.0).astype(np.float32)
     return frm
@@ -83,6 +84,31 @@ def apply_scaling(array: np.ndarray, width: int, height: int) -> None:
     array[:, 3] *= height / 640
 
 
+def cap_bboxes(
+    array: np.ndarray,
+    width: int,
+    height: int,
+) -> None:
+    """
+    Clamp bounding box coordinates to be within image boundaries, in-place.
+
+    Args:
+        array: numpy array of shape (N, 4) or (N, >=4) with (x1, y1, x2, y2) in the first 4 columns.
+            - array[:, 0]: x1 (top-left x)
+            - array[:, 1]: y1 (top-left y)
+            - array[:, 2]: x2 (bottom-right x)
+            - array[:, 3]: y2 (bottom-right y)
+        width: Width of the image (maximum x2 value).
+        height: Height of the image (maximum y2 value).
+    """
+    # Ensure x1 and y1 are no less than zero
+    array[:, 0] = np.clip(array[:, 0], a_min=0, a_max=None)
+    array[:, 1] = np.clip(array[:, 1], a_min=0, a_max=None)
+    # Ensure x2 and y2 are no more than width and height
+    array[:, 2] = np.clip(array[:, 2], a_min=None, a_max=width)
+    array[:, 3] = np.clip(array[:, 3], a_min=None, a_max=height)
+
+
 def filter_bboxes(
     conf: float,
     num_classes: int,
@@ -106,43 +132,50 @@ def filter_bboxes(
     Returns:
         np.ndarray: Array of filtered detections, shape (M, 6), dtype float32.
             - columns 0:4: [x1, y1, x2, y2] (top-left and bottom-right corners, scaled to original image size)
-            - column 4: confidence score
-            - column 5: class_id (float, but should be int-castable)
+            - columns 4:4+num_classes: class confidence scores
     """
-    # Extract bounding box coordinates (x_center, y_center, width, height)
-    boxes = results_all[:, :4]
-    # Extract class confidence scores
-    class_scores = results_all[:, 4 : 4 + num_classes]
-    # Get class with highest confidence for each detection
-    class_ids = np.argmax(class_scores, axis=1)
-    confidences = np.max(class_scores, axis=1)
-    # Stack boxes, confidences, and class_ids: shape (N, 6)
-    results_top = np.hstack([boxes, confidences[:, None], class_ids[:, None]])
     # Filter by confidence threshold
-    results_filtered_conf = results_top[results_top[:, 4] > conf]
+    results_filtered_conf = results_all[
+        results_all[:, 4 : 4 + num_classes].max(axis=1) > conf
+    ]
     # Convert (x_center, y_center, width, height) to (x1, y1, x2, y2) in-place
     convert_xyhw_into_x1y1x2y2(results_filtered_conf)
     # Scale coordinates from 640x640 to original image size in-place
     if img_h != 640 or img_w != 640:
         apply_scaling(results_filtered_conf, img_w, img_h)
-    # Ensure x1 and y1 are no less than zero
-    results_filtered_conf[:, 0] = np.maximum(results_filtered_conf[:, 0], 0)
-    results_filtered_conf[:, 1] = np.maximum(results_filtered_conf[:, 1], 0)
-    # Ensure x2 and y2 are no more than img_w and img_h
-    results_filtered_conf[:, 2] = np.minimum(results_filtered_conf[:, 2], img_w)
-    results_filtered_conf[:, 3] = np.minimum(results_filtered_conf[:, 3], img_h)
+        results_filtered_conf[:, 0] *= img_w / 640
+        results_filtered_conf[:, 1] *= img_h / 640
+        results_filtered_conf[:, 2] *= img_w / 640
+        results_filtered_conf[:, 3] *= img_h / 640
+    cap_bboxes(results_filtered_conf, img_w, img_h)
     return results_filtered_conf
 
 
+T = TypeVar("T")
+
+
+def last_item(gen: Generator[T]) -> tuple[T]:
+    """
+    Returns the last item from a generator.
+    Raises ValueError if the generator is empty.
+    """
+    last = object()
+    for item in gen:
+        last = item
+    if last is object():
+        raise ValueError("Generator is empty")
+    return (last,)
+
+
 def generate_tracked_bboxes(
-    frames: Iterable[np.ndarray],
+    frames: Iterable[tuple[int, np.ndarray]],
     onnx_path: str | Path,
     class_names: list[str],
     *,
     conf: float = 0.1,
-    nms_thresh: float = 0.7,
+    nms_thresh: float = 0.2,
     slice_overlap: float = 0.25,
-    slice_scaling: float = 4.0,
+    slice_scaling: float = 2.0,
     max_batch_size: int = 10,
 ) -> Iterator[pd.DataFrame]:
     """
@@ -180,22 +213,30 @@ def generate_tracked_bboxes(
     num_classes = len(class_names)
     tracker = ByteTrack()
     smoother = DetectionsSmoother()
-    for frame_no, frame in enumerate(frames):
+    for frame_no, frame in frames:
+        print(f"Processing frame {frame_no}...")
         all_detections = []
 
         # beware, batch size is baked into the model too
-        for batch in itertools.batched(
-            slice_frame_scaling(
-                frame,
-                slice_width=640,
-                slice_height=640,
-                slice_overlap=slice_overlap,
-                slice_scaling_max=slice_scaling,
-                full_frame=True,  # include full frame as a slice
-            ),
-            max_batch_size,
-            strict=False,  # will pad the last batch later if needed
+        for batch_n, batch in enumerate(
+            itertools.batched(
+                last_item(  # TODO temp remove this
+                    slice_frame_scaling(
+                        frame,
+                        slice_width=640,
+                        slice_height=640,
+                        slice_overlap=slice_overlap,
+                        slice_scaling_max=slice_scaling,
+                        full_frame=True,  # include full frame as a slice
+                    ),
+                ),
+                max_batch_size,
+                strict=False,  # will pad the last batch later if needed
+            )
         ):
+            print(f"Processing frame {frame_no} batch {batch_n + 1}...")
+            regions: Iterable[Region]
+            slices: Iterable[np.ndarray]
             regions, slices = zip(*batch, strict=True)
             slices = [preprocess(slice) for slice in slices]
             # model _must_ have a specific batch size, no smaller, no larger
@@ -215,25 +256,32 @@ def generate_tracked_bboxes(
                 results_all = outputs[0][i].transpose().squeeze()
                 # Filter and scale detections for this chunk (no NMS yet)
                 chunk_detections = filter_bboxes(
-                    conf, num_classes, 640, 640, results_all
+                    conf, num_classes, region.height, region.width, results_all
                 )
                 # Offset chunk detections to original frame coordinates
                 chunk_detections[:, 0] += region.x1  # x1
-                chunk_detections[:, 2] += region.x1  # x2
                 chunk_detections[:, 1] += region.y1  # y1
+                chunk_detections[:, 2] += region.x1  # x2
                 chunk_detections[:, 3] += region.y1  # y2
                 all_detections.append(chunk_detections)
         # Combine all detections from all chunks
         all_detections = np.vstack(all_detections)
 
         # Run NMS on the combined detections (in full-frame coordinates)
-        results_filtered = nms(all_detections, nms_thresh)
+        results_filtered = weighted_nms(all_detections, nms_thresh)
+        # results_filtered = nms(all_detections, nms_thresh)
+
+        # Cap for sanity
+        cap_bboxes(results_filtered, frame.shape[1], frame.shape[0])
+        results_filtered[:, 4:] = np.clip(results_filtered[:, 4:], a_min=0.0, a_max=0.0)
 
         # Do tracking on the filtered detections
         detections = Detections(
             xyxy=results_filtered[:, :4],
-            confidence=results_filtered[:, 4],
-            class_id=results_filtered[:, 5].astype(int),
+            confidence=results_filtered[:, 4:].max(axis=1),
+            data={
+                class_names[i]: results_filtered[:, 4 + i] for i in range(num_classes)
+            },
         )
         detections = tracker.update_with_detections(detections)
         detections = smoother.update_with_detections(detections)
@@ -245,21 +293,19 @@ def generate_tracked_bboxes(
             "y1": pd.Series(np.floor(detections.xyxy[:, 1]), dtype=np.uint32),
             "x2": pd.Series(np.ceil(detections.xyxy[:, 2]), dtype=np.uint32),
             "y2": pd.Series(np.ceil(detections.xyxy[:, 3]), dtype=np.uint32),
-            "conf": pd.Series(detections.confidence, dtype=np.float32),
-            "class": pd.Series(
-                pd.Categorical(
-                    detections.class_id,
-                    categories=np.arange(len(class_names)),
-                    ordered=False,
-                ).rename_categories(class_names),
-                dtype=pd.CategoricalDtype(class_names, ordered=False),
-            ),
             "tracker": pd.Series(
                 [tid if tid is not None else 0 for tid in detections.tracker_id]
                 if detections.tracker_id is not None
-                else [0] * n,
+                else np.zeros(n, dtype=np.uint32),
                 dtype=np.uint32,
             ),
         }
+        for i, name in enumerate(class_names):
+            data[name] = pd.Series(
+                detections.data[name].astype(np.float32)
+                if name in detections.data
+                else np.zeros(n, dtype=np.float32),
+                dtype=pd.Float32Dtype(),
+            )
         df = pd.DataFrame(data)
         yield df

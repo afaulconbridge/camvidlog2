@@ -10,7 +10,7 @@ def test_generate_tracked_bboxes_with_real_video(video_path: Path):
     frames = (f for _, f in generate_frames_cv2(video_path))
     result = list(
         generate_tracked_bboxes(
-            [next(frames), next(frames)],
+            [[1, next(frames)], [2, next(frames)]],
             "yoloe-11l-seg.onnx",
             ["deer", "bird", "hedgehog", "otter", "giraffe"],
         )
@@ -18,11 +18,16 @@ def test_generate_tracked_bboxes_with_real_video(video_path: Path):
     assert len(result) == 2
     for df in result:
         assert isinstance(df, pd.DataFrame)
-        assert set(
-            ["frame_no", "x1", "y1", "x2", "y2", "conf", "class", "tracker"]
-        ).issubset(df.columns)
-        # Check that 'class' column is categorical with correct categories
-        assert isinstance(df["class"].dtype, pd.CategoricalDtype)
-        assert set(df["class"].cat.categories) == set(
-            ["deer", "bird", "hedgehog", "otter", "giraffe"]
-        )
+        assert [
+            "frame_no",
+            "x1",
+            "y1",
+            "x2",
+            "y2",
+            "tracker",
+            "deer",
+            "bird",
+            "hedgehog",
+            "otter",
+            "giraffe",
+        ] == df.columns.to_list()

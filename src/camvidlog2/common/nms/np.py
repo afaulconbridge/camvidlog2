@@ -1,3 +1,5 @@
+from enum import Enum
+
 import numpy as np
 
 
@@ -26,39 +28,82 @@ def iou(box: np.ndarray, boxes: np.ndarray) -> np.ndarray:
     return iou
 
 
-def nms(boxes: np.ndarray, iou_threshold: float = 0.5) -> np.ndarray:
+class NMSMode(Enum):
+    AREA = "area"
+    CONF_MAX = "conf_max"
+    CONF_SUM = "conf_sum"
+
+
+def nms(
+    boxes: np.ndarray,
+    iou_threshold: float = 0.5,
+    mode: NMSMode = NMSMode.CONF_MAX,
+) -> np.ndarray:
     """
     Perform Non-Maximum Suppression (NMS) on an array of boxes.
-    boxes: shape (N, 6) [x1, y1, x2, y2, confidence, class_label]
-    Returns: filtered boxes, shape (M, 6)
+    boxes: shape (N, 4+C) [x1, y1, x2, y2, [class confidence]]
+    iou_threshold: float, threshold for IoU to suppress boxes
+    mode: NMSMode - determines sorting method
+    Returns: filtered boxes, shape (M, 4+C) [x1, y1, x2, y2, [class confidence]]
     """
     if len(boxes) == 0:
-        return np.empty((0, 6))
+        return np.empty((0, boxes.shape[1]))
 
-    # Sort boxes by confidence descending
-    order = boxes[:, 4].argsort()[::-1]
-    boxes = boxes[order]
+    if mode == NMSMode.AREA:
+        sort_key = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    elif mode == NMSMode.CONF_SUM:
+        sort_key = boxes[:, 4:].sum(axis=1)
+    elif mode == NMSMode.CONF_MAX:
+        sort_key = boxes[:, 4:].max(axis=1)
+    else:
+        raise ValueError(f"Unknown NMS mode: {mode}")
+    boxes = boxes[sort_key.argsort()[::-1]]
 
     keep = []
     while len(boxes) > 0:
-        current = boxes[0]
-        keep.append(current)
-
-        # Filter out boxes with the same class and IoU > threshold
-        rest = boxes[1:]
-        if len(rest) == 0:
+        curr = boxes[0]
+        keep.append(curr)
+        if len(boxes) == 1:
             break
-        # Only compare with same class label
-        same_class_mask = rest[:, 5] == current[5]
-        same_class_boxes = rest[same_class_mask]
-        other_boxes = rest[~same_class_mask]
+        ious = iou(curr, boxes[1:])
+        inds = np.where(ious <= iou_threshold)[0]
+        boxes = boxes[1:][inds]
+    return np.stack(keep) if keep else np.empty((0, boxes.shape[1]))
 
-        if len(same_class_boxes) > 0:
-            ious = iou(current, same_class_boxes)
-            keep_mask = ious <= iou_threshold
-            same_class_boxes = same_class_boxes[keep_mask]
 
-        # Concatenate boxes of other classes and those not suppressed
-        boxes = np.vstack([same_class_boxes, other_boxes])
+def weighted_nms(
+    boxes: np.ndarray,
+    iou_threshold: float = 0.5,
+) -> np.ndarray:
+    """
+    Perform Weighted Non-Maximum Suppression (box voting) on an array of boxes.
+    boxes: shape (N, 4+C) [x1, y1, x2, y2, [class confidence]]
+    iou_threshold: float, threshold for IoU to merge boxes
+    Returns: filtered boxes, shape (M, 4+C) [x1, y1, x2, y2, [class confidence]]
+    """
+    if len(boxes) == 0:
+        return np.empty((0, boxes.shape[1]))
 
-    return np.vstack(keep)
+    sort_key = boxes[:, 4:].max(axis=1)
+    boxes = boxes[sort_key.argsort()[::-1]]
+
+    keep = []
+    used = np.zeros(len(boxes), dtype=bool)
+    for i in range(len(boxes)):
+        if used[i]:
+            continue
+        curr = boxes[i]
+        ious = iou(curr, boxes)
+        overlapping = np.where((ious > iou_threshold) & (~used))[0]
+        overlapping = np.append(overlapping, i)  # include self
+        group = boxes[overlapping]
+
+        # Weighted average (across all classes)
+        weights = group[:, 4:].max(axis=1)
+        xyxy = np.average(group[:, :4], axis=0, weights=weights)
+        confs = np.average(group[:, 4:], axis=0, weights=weights)
+
+        merged = np.concatenate([xyxy, confs])
+        keep.append(merged)
+        used[overlapping] = True
+    return np.stack(keep) if keep else np.empty((0, boxes.shape[1]))

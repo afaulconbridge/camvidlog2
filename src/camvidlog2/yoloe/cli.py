@@ -43,7 +43,7 @@ def load(
         array = create(
             video,
             generate_tracked_bboxes(
-                (v for _, v in generate_frames_cv2(video)),
+                generate_frames_cv2(video),
                 onnx_path=onnx,
                 class_names=classes,
             ),
@@ -65,7 +65,16 @@ def load(
 def show(
     video: Path,
     output: Path,
-    db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
+    db: Annotated[
+        Path,
+        typer.Option("--db", help="Path to the database file"),
+    ] = Path("tmp.feather"),
+    confidence_threshold: Annotated[
+        float,
+        typer.Option(
+            "--confidence", "-c", help="Minimum confidence required to display a track"
+        ),
+    ] = 0.5,
 ):
     # load existing array, if any
     array = data_load(db)
@@ -82,6 +91,7 @@ def show(
         for frame in overlay_detections(
             (f for _, f in generate_frames_cv2(video)),
             array,
+            confidence_threshold=confidence_threshold,
         ):
             video_writer.write(frame)
 
