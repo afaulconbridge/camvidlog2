@@ -504,6 +504,47 @@ def slice_frame_scaling(
         )
 
     if full_frame:
-        # yield the full frame as a slice
-        # might not match the aspect ratio
-        yield Region(0, 0, frame_width, frame_height), frame
+        # yield the full frame as a slice, padded to maintain aspect ratio
+        target_aspect = slice_width / slice_height
+        padded_frame, region = pad_to_aspect_ratio(frame, target_aspect)
+        yield region, padded_frame
+
+
+def pad_to_aspect_ratio(
+    frame: np.ndarray, target_aspect: float
+) -> tuple[np.ndarray, Region]:
+    """Pad the frame with black pixels on the right and bottom to achieve the target aspect ratio.
+    Returns the padded frame and the corresponding Region."""
+    frame_height, frame_width = frame.shape[:2]
+    frame_aspect = frame_width / frame_height
+    if abs(frame_aspect - target_aspect) < 1e-6:
+        # No padding needed, already matches target aspect ratio
+        padded_frame = frame
+        region = Region(0, 0, frame_width, frame_height)
+    elif frame_aspect > target_aspect:
+        # Frame is wider than target, pad only bottom
+        new_height = int(round(frame_width / target_aspect))
+        pad_total = new_height - frame_height
+        padded_frame = np.pad(
+            frame,
+            ((0, pad_total), (0, 0), (0, 0))
+            if frame.ndim == 3
+            else ((0, pad_total), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
+        region = Region(0, 0, frame_width, new_height)
+    else:
+        # Frame is taller than target, pad only right
+        new_width = int(round(frame_height * target_aspect))
+        pad_total = new_width - frame_width
+        padded_frame = np.pad(
+            frame,
+            ((0, 0), (0, pad_total), (0, 0))
+            if frame.ndim == 3
+            else ((0, 0), (0, pad_total)),
+            mode="constant",
+            constant_values=0,
+        )
+        region = Region(0, 0, new_width, frame_height)
+    return padded_frame, region
