@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from camvidlog2.bioclip.ai import get_string_embeddings
-from camvidlog2.bioclip.data import (
+from camvidlog2.common.config import (
     EmbeddingCollection,
     FrameEmbedding,
     StringEmbedding,

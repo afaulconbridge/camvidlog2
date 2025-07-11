@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from camvidlog2.bioclip.data import (
+from camvidlog2.common.config import (
     EmbeddingCollection,
     EmbeddingGroup,
     FrameEmbedding,

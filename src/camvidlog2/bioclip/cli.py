@@ -8,17 +8,19 @@ import typer
 
 from camvidlog2.bioclip.ai import get_video_embeddings
 from camvidlog2.bioclip.data import (
-    EmbeddingCollection,
-    EmbeddingGroup,
-    StringEmbedding,
     create,
-    load_embedding_json,
 )
 from camvidlog2.bioclip.plots import plot_distances
 from camvidlog2.bioclip.queries import (
     calculate_distances,
     calculate_results,
     load_embedding_dataframe,
+)
+from camvidlog2.common.config import (
+    EmbeddingCollection,
+    EmbeddingGroup,
+    StringEmbedding,
+    load_embedding_json,
 )
 from camvidlog2.common.data import load as data_load
 from camvidlog2.vid import FrameError, generate_frames_cv2, get_frame_by_no, save

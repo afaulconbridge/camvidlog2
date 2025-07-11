@@ -4,13 +4,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from camvidlog2.bioclip.data import (
+from camvidlog2.bioclip.queries import load_embedding_dataframe
+from camvidlog2.common.config import (
     EmbeddingCollection,
     EmbeddingGroup,
     FrameEmbedding,
     StringEmbedding,
 )
-from camvidlog2.bioclip.queries import load_embedding_dataframe
 
 
 def test_strings_load_embedding_via_json_filename() -> None:
