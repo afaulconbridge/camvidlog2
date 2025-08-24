@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "typer>=0.15.2",
-    "open-clip-torch>=2.31.0",
+    "open-clip-torch>=2.31.0",            # bioclip
     "opencv-python-headless>=4.11.0.86",
     "pandas[feather,performance]>=2.2.3",
     "pandas-stubs>=2.2.3.250308",
@@ -17,7 +17,11 @@ dependencies = [
     "ffmpeg-python>=0.2.0",
     "paho-mqtt>=2.1.0",
     "supervision>=0.25.1",
-    "onnxruntime>=1.22.0",
+    "onnxruntime>=1.22.0",                # yoloe
+    "transformers>=4.55.4",               # moondream
+    "pyvips>=3.0.0",                      # moondream
+    "einops>=0.8.1",                      # moondream
+    "accelerate>=1.10.0",                 # moondream on GPU
 ]
 
 [dependency-groups]
