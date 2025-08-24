@@ -17,14 +17,13 @@ def overlay_detections(
 
     for i, frame in enumerate(frames):
         # Select detections for the current frame via multilevel index
-        if i not in detections.index.get_level_values("frame_no"):
+        detections_frame = detections[detections["frame_no"] == i]
+        if detections_frame.empty:
             # no detections for this frame, yield the original frame
             yield frame
             continue
         detections_frame = detections.xs(i, level="frame_no")
         detections_coords = detections_frame[["x1", "y1", "x2", "y2"]].to_numpy()
-
-        print(detections_coords)
 
         detections_sv = sv.Detections(
             xyxy=detections_coords,

@@ -19,9 +19,13 @@ def load(
     videos: list[Path],
     classes: Annotated[list[str], typer.Option("--class", "-c")],
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
-):
+) -> None:
     # load existing array, if any
     existing_array = data_load(db)
+
+    # moondream currently supports a single prompt; keep UI honest
+    if len(classes) != 1:
+        raise typer.BadParameter("exactly one --class is supported for now")
 
     for video in videos:
         video = video.resolve()
@@ -29,13 +33,11 @@ def load(
             existing_array is not None
             and (existing_array.index.get_level_values("filename") == str(video)).any()
         ):
-            print("File already loaded")
-            print(video)
+            typer.echo(f"Already loaded: {video}")
             continue
 
         if not video.exists():
-            print("File does not exist")
-            print(video)
+            typer.echo(f"Missing file: {video}")
             continue
 
         # inference
@@ -55,8 +57,9 @@ def load(
             existing_array = pd.concat([existing_array, array])
 
         # save array (new or existing) to disk
+        db.parent.mkdir(parents=True, exist_ok=True)
         existing_array.to_feather(db)
-        print("saved file")
+        typer.echo(f"Saved database: {db}")
 
 
 @app.command()
@@ -64,16 +67,16 @@ def show(
     video: Path,
     output: Path,
     db: Annotated[Path, typer.Option()] = Path("tmp.feather"),
-):
+) -> None:
     # load existing array, if any
     array = data_load(db)
     if array is None:
-        raise click.FileError("database file must exist")
+        raise click.FileError(str(db), hint="database file must exist")
 
     video = video.resolve()
     array = array.loc[array.index.get_level_values("filename") == str(video)]
     if array.shape[0] == 0:
-        raise ValueError("video must be in database")
+        raise typer.BadParameter("video not in database")
 
     stats = get_video_stats(video)
     with save_video(output, stats=stats) as video_writer:

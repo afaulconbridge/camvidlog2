@@ -1,5 +1,6 @@
 import time
-from typing import Iterable
+from collections.abc import Iterable
+from typing import Generator
 
 import numpy as np
 import pandas as pd
@@ -11,8 +12,9 @@ from transformers import AutoModelForCausalLM
 def generate_bboxes(
     frames: Iterable[np.ndarray],
     class_names: list[str],
+    *,
     cloud: bool = False,
-):
+) -> Generator[pd.DataFrame]:
     """
 
     Yields:
@@ -45,6 +47,9 @@ def generate_bboxes(
 
         # only supports one prompt at a time currently?
         bboxes = model.detect(image, class_names[0])["objects"]
+        if not bboxes:
+            yield pd.DataFrame(columns=["frame_no", "x1", "y1", "x2", "y2", "class"])
+            continue
 
         # [{'x_min': 0.1953125, 'y_min': 0.46826171875, 'x_max': 0.6171875, 'y_max': 0.79541015625}]
         df = pd.DataFrame(bboxes).rename(
@@ -67,7 +72,10 @@ def generate_bboxes(
         detections = smoother.update_with_detections(detections)
 
         data = {
-            "frame_no": i,
+            "frame_no": pd.Series(
+                np.full(detections.xyxy.shape[0], i, dtype=np.uint32),
+                dtype=pd.UInt32Dtype(),
+            ),
             "x1": pd.Series(np.floor(detections.xyxy[:, 0]), dtype=np.uint32),
             "y1": pd.Series(np.floor(detections.xyxy[:, 1]), dtype=np.uint32),
             "x2": pd.Series(np.ceil(detections.xyxy[:, 2]), dtype=np.uint32),
@@ -77,6 +85,7 @@ def generate_bboxes(
         df = pd.DataFrame(data)
 
         end = time.time()
+
         print(f"Handled frame {i} in {end - start:.02f}s")
 
         yield df
