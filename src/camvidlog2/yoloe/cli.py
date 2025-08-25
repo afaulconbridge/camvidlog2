@@ -2,10 +2,20 @@ from pathlib import Path
 from typing import Annotated
 
 import click
+import cv2
 import pandas as pd
+import torch
 import typer
 from ultralytics import YOLOE
 
+from camvidlog2.common.config import (
+    EmbeddingCollection,
+    EmbeddingGroup,
+    FrameEmbedding,
+    ImageEmbedding,
+    StringEmbedding,
+    load_embedding_json,
+)
 from camvidlog2.common.data import load as data_load
 from camvidlog2.vid import generate_frames_cv2, get_video_stats, save_video
 from camvidlog2.yoloe.ai import generate_tracked_bboxes
@@ -103,16 +113,63 @@ def show(
             video_writer.write(frame)
 
 
+def calculate_embeddings(
+    model: YOLOE,
+    embedding_collection: EmbeddingCollection,
+) -> pd.DataFrame:
+    # pre-calculate all the string embeddings we'll need in one go for efficiency
+    embedding_strings = [
+        item.query
+        for embedding_group in embedding_collection.groups
+        for item in embedding_group.items
+        if isinstance(item, StringEmbedding)
+    ]
+    tensor_strings = model.get_text_pe(embedding_strings)
+
+    # combine the embeddings from strings and frames, in the original order!
+    list_combined: list[torch.Tensor] = []
+    string_count = 0
+    for embedding_group in embedding_collection.groups:
+        for item in embedding_group.items:
+            if isinstance(item, StringEmbedding):
+                list_combined.append(tensor_strings[string_count, :])
+                string_count += 1
+            elif isinstance(item, FrameEmbedding):
+                raise NotImplementedError
+            elif isinstance(item, ImageEmbedding):
+                filepath = item.filepath.resolve()
+                if not filepath.exists():
+                    raise FileNotFoundError(f"Image file does not exist: {filepath}")
+                image = cv2.imread(str(filepath))
+                raise NotImplementedError()
+                image_embedding = model.get_visual_pe(image, visual_features)
+                list_combined.append(image_embedding)
+            else:
+                raise TypeError("Unexpected item in embedding_group")
+    tensor_combined = torch.concat(list_combined)
+
+    # return a combined tensor of all embeddings
+    # NOTE: this does _not_ include which embeddings are part of which groups!
+    return tensor_combined
+
+
 @app.command(help="Export a YOLOE model to ONNX format with custom classes.")
 def prepare(
     classes: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option(
             "--class",
             "-c",
             help="List of class names for the model",
         ),
-    ],
+    ] = None,
+    json: Annotated[
+        Path | None,
+        typer.Option(
+            "--json",
+            help="Path to JSON config file with class names (mutually exclusive with --class)",
+        ),
+    ] = None,
     model_path: Annotated[
         str, typer.Option(help="Path to YOLOE model file")
     ] = "yoloe-11l-seg.pt",
@@ -122,7 +179,6 @@ def prepare(
     force: Annotated[
         bool,
         typer.Option(
-            False,
             "--force",
             "-f",
             help="Overwrite output ONNX file if it exists",
@@ -131,13 +187,27 @@ def prepare(
     batch: Annotated[
         int,
         typer.Option(
-            10,
             "--batch",
             "-b",
             help="Batch size for ONNX export",
         ),
     ] = 10,
 ):
+    if json is not None and classes:
+        raise ValueError("Cannot use --json and --class together")
+    elif json is not None and not classes:
+        embedding_collection = load_embedding_json(json)
+    elif json is None and not classes:
+        raise ValueError("Must provide either --json or --class")
+    elif json is None and classes:
+        embedding_collection = EmbeddingCollection(
+            groups=[
+                EmbeddingGroup(
+                    items=[StringEmbedding(query=c) for c in classes],
+                ),
+            ]
+        )
+
     onnx_path_obj = Path(onnx_path)
     # Check if output file exists and handle according to --force flag
     if onnx_path_obj.exists():
@@ -145,10 +215,18 @@ def prepare(
             onnx_path_obj.unlink()
         else:
             raise FileExistsError(f"Destination ONNX file already exists: {onnx_path}")
+
     # Load via ultralytics, will download if appropriate
     model = YOLOE(model_path)
+    # assemble the embeddings
+    embeddings = calculate_embeddings(model, embedding_collection)
     # Set class names for the model - this is then baked into the ONNX export
-    model.set_classes(classes, model.get_text_pe(classes))
+    class_names = [
+        f"{group.name}_{i}"
+        for group in embedding_collection.groups
+        for i, _ in enumerate(group.items)
+    ]
+    model.set_classes(class_names, embeddings)
     """
 The technical challenge involves handling the visual embeddings during export since they require reference image processing.
 

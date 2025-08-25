@@ -1,7 +1,14 @@
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+
+class EmbeddingSource(StrEnum):
+    STRING = "string"
+    FRAME = "frame"
+    IMAGE = "image"
 
 
 class StringEmbedding(BaseModel):
@@ -17,13 +24,13 @@ class FrameEmbedding(BaseModel):
 
 
 class ImageEmbedding(BaseModel):
-    source: Literal["frame"] = "image"
+    source: Literal["image"] = "image"
     filepath: Path
 
 
 # see https://stackoverflow.com/a/70917353/932342
 AnyEmbedding = Annotated[
-    StringEmbedding | FrameEmbedding, Field(discriminator="source")
+    StringEmbedding | FrameEmbedding | ImageEmbedding, Field(discriminator="source")
 ]
 
 
