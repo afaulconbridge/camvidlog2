@@ -1,6 +1,6 @@
 # Based on https://github.com/astral-sh/uv-docker-example
 
-FROM ghcr.io/astral-sh/uv:0.8.8-python3.13-bookworm-slim
+FROM ghcr.io/astral-sh/uv:0.8.23-python3.13-bookworm-slim
 
 WORKDIR /app
 
