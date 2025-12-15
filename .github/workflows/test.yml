@@ -36,7 +36,7 @@ jobs:
       - name: Cache go2rtc binary
         # will automatically cache at end of process
         id: cache-go2rtc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./go2rtc
           key: go2rtc-v1-v1.9.9-${{runner.os}}-${{runner.arch}}
@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache yoloe-11l-seg.onnx
         id: cache-onnx
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: yoloe-11l-seg.onnx
           key: yoloe-11l-seg-onnx-v1-${{ runner.os }}-${{ runner.arch }}
